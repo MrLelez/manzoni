@@ -1,6 +1,17 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\ImageController;
+use App\Http\Controllers\Admin\ImagesController;
+
+// ====================================
+// IMAGE SERVING ROUTES (DEVONO ESSERE TRA LE PRIME!)
+// ====================================
+
+// Serve image by clean name: /img/cestino-roma-blue.jpg
+Route::get('/img/{cleanName}', [ImageController::class, 'serve'])
+    ->name('images.serve')
+    ->where('cleanName', '[a-zA-Z0-9\-_]+');
 
 // Home page pubblica
 Route::get('/', function () {
@@ -42,6 +53,15 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::post('/users', [App\Http\Controllers\Admin\AdminDashboardController::class, 'storeUser'])->name('users.store');
     Route::patch('/users/{user}/toggle', [App\Http\Controllers\Admin\AdminDashboardController::class, 'toggleUserStatus'])->name('users.toggle');
     Route::patch('/users/{user}/level', [App\Http\Controllers\Admin\AdminDashboardController::class, 'updateUserLevel'])->name('users.level');
+    // Images management
+    Route::get('/images', [ImagesController::class, 'index'])
+        ->name('admin.images.index');
+    Route::post('/images', [ImagesController::class, 'store'])
+        ->name('admin.images.store');
+    Route::put('/images/{image}', [ImagesController::class, 'update'])
+        ->name('admin.images.update');
+    Route::delete('/images/{image}', [ImagesController::class, 'destroy'])
+        ->name('admin.images.destroy');
 });
 
 // Rivenditore routes - Ecommerce con livelli 1-5

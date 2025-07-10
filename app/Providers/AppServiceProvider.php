@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\Blade;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -19,6 +20,23 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // ====================================
+        // CUSTOM BLADE DIRECTIVES FOR IMAGES
+        // ====================================
+        
+        // @image('cestino-roma-blue', 'Alt text', ['class' => 'w-full'])
+        Blade::directive('image', function ($expression) {
+            return "<?php echo App\Helpers\ImageHelper::img($expression); ?>";
+        });
+
+        // @responsiveImage('cestino-roma-blue', 'Alt text', ['class' => 'responsive'])
+        Blade::directive('responsiveImage', function ($expression) {
+            return "<?php echo App\Helpers\ImageHelper::responsiveImg($expression); ?>";
+        });
+
+        // @imageUrl('cestino-roma-blue') 
+        Blade::directive('imageUrl', function ($expression) {
+            return "<?php echo App\Helpers\ImageHelper::url($expression); ?>";
+        });
     }
 }
