@@ -171,60 +171,15 @@
 
                             {{-- Category Field --}}
                             <div class="space-y-2">
-                                <div class="flex justify-between items-center">
-                                    <label class="block text-sm font-medium text-gray-700">Categoria</label>
-                                    <button wire:click="$toggle('showCategoryForm')" 
-                                            class="text-xs text-blue-600 hover:text-blue-800">
-                                        {{ $showCategoryForm ? 'Annulla' : '+ Nuova' }}
-                                    </button>
-                                </div>
-                                
-                                {{-- New Category Form --}}
-                                @if($showCategoryForm)
-                                    <div class="p-3 border border-blue-200 rounded-lg bg-blue-50 space-y-3">
-                                        <div>
-                                            <input type="text" 
-                                                   wire:model="newCategoryName"
-                                                   placeholder="Nome categoria"
-                                                   class="w-full text-sm border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                            @error('newCategoryName') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
-                                        </div>
-                                        <div>
-                                            <input type="text" 
-                                                   wire:model="newCategoryDescription"
-                                                   placeholder="Descrizione (opzionale)"
-                                                   class="w-full text-sm border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                            @error('newCategoryDescription') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
-                                        </div>
-                                        <div class="flex space-x-2">
-                                            <button wire:click="createCategory" 
-                                                    class="px-3 py-1 bg-green-600 text-white text-xs rounded-md hover:bg-green-700">
-                                                Crea Categoria
-                                            </button>
-                                            <button wire:click="$set('showCategoryForm', false)" 
-                                                    class="px-3 py-1 bg-gray-400 text-white text-xs rounded-md hover:bg-gray-500">
-                                                Annulla
-                                            </button>
-                                        </div>
-                                    </div>
-                                @endif
-                                
-                                {{-- Category Select --}}
-                                <div class="flex space-x-2">
-                                    <select wire:model="category_id" 
-                                            wire:change="updateCategory"
-                                            class="flex-1 border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-md shadow-sm">
-                                        <option value="">Seleziona categoria...</option>
-                                        @foreach($categories as $category)
-                                            <option value="{{ $category->id }}">{{ $category->name }}</option>
-                                        @endforeach
-                                    </select>
-                                    <a href="{{ route('admin.categories.index') }}" 
-                                       class="px-3 py-2 bg-gray-500 text-white text-xs rounded hover:bg-gray-600"
-                                       title="Gestisci categorie">
-                                        ⚙️
-                                    </a>
-                                </div>
+                                <label class="block text-sm font-medium text-gray-700">Categoria</label>
+                                <select wire:model="category_id" 
+                                        wire:change="updateCategory"
+                                        class="w-full border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-md shadow-sm">
+                                    <option value="">Seleziona categoria...</option>
+                                    @foreach($categories as $category)
+                                        <option value="{{ $category->id }}">{{ $category->name }}</option>
+                                    @endforeach
+                                </select>
                                 @error('category_id') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                             </div>
                         </div>
@@ -269,157 +224,155 @@
                         </div>
                     </div>
 
-                    {{-- Images Section --}}
-                    <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                        <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
-                            <div class="flex justify-between items-center">
-                                <h3 class="text-lg font-medium text-gray-900">
-                                    Immagini ({{ $product->images ? $product->images->count() : 0 }})
-                                </h3>
-                                <button wire:click="$toggle('showImageUpload')" 
-                                        class="px-3 py-1 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700">
-                                    {{ $showImageUpload ? 'Chiudi' : 'Aggiungi' }}
+                    {{-- Images Section - WORKING VERSION --}}
+                    
+<div class="bg-white overflow-hidden shadow-sm sm:rounded-lg ">
+    <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
+        <div class="flex justify-between items-center">
+            <h3 class="text-lg font-medium text-gray-900">
+                Immagini ({{ $product->images ? $product->images->count() : 0 }})
+            </h3>
+            <button wire:click="$toggle('showImageUpload')" 
+                    class="px-3 py-1 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700">
+                {{ $showImageUpload ? 'Chiudi' : 'Aggiungi' }}
+            </button>
+        </div>
+    </div>
+    <div class="p-6">
+        
+        {{-- Messages --}}
+        @if (session('message'))
+            <div class="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded">
+                {{ session('message') }}
+            </div>
+        @endif
+        
+        @if (session('error'))
+            <div class="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+                {{ session('error') }}
+            </div>
+        @endif
+        
+        {{-- Upload Section --}}
+        @if($showImageUpload)
+            <div class="mb-6 p-4 border-2 border-dashed border-blue-300 rounded-lg">
+                <div class="text-center mb-4">
+                    <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                        <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <div class="mt-4">
+                        <label class="cursor-pointer">
+                            <span class="mt-2 block text-sm font-medium text-gray-900">
+                                Seleziona immagini da caricare
+                            </span>
+                            <input type="file" 
+                                   wire:model="uploadedImages" 
+                                   multiple 
+                                   accept="image/*" 
+                                   class="block w-full mt-2 text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                        </label>
+                        <p class="mt-1 text-xs text-gray-500">
+                            PNG, JPG, WebP fino a 10MB
+                        </p>
+                    </div>
+                </div>
+                
+                {{-- Upload Button - QUESTO ERA IL PEZZO MANCANTE --}}
+                @if($uploadedImages)
+                    <div class="text-center">
+                        <button wire:click="uploadImages" 
+                                wire:loading.attr="disabled"
+                                class="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed">
+                            <span wire:loading.remove wire:target="uploadImages">
+                                📤 Carica {{ count($uploadedImages) }} Immagini
+                            </span>
+                            <span wire:loading wire:target="uploadImages">
+                                ⏳ Caricamento in corso...
+                            </span>
+                        </button>
+                        <p class="mt-2 text-xs text-gray-600">
+                            Clicca per caricare le immagini selezionate
+                        </p>
+                    </div>
+                @endif
+            </div>
+        @endif
+
+        {{-- Images Grid with Drag & Drop --}}
+        @if($product->images && $product->images->count() > 0)
+            
+            {{-- Drag & Drop Container --}}
+            <div id="sortable-images" class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                @foreach($product->images->sortBy('sort_order') as $image)
+                    <div class="image-item border-2 rounded-lg overflow-hidden bg-white shadow hover:shadow-md transition-all {{ $image->is_primary ? 'border-yellow-400 ring-2 ring-yellow-200' : 'border-gray-200' }}"
+                         data-image-id="{{ $image->id }}">
+                        
+                        {{-- Drag Handle --}}
+                        <div class="drag-handle bg-gray-100 hover:bg-blue-100 p-2 cursor-move text-center border-b transition-colors">
+                            <div class="flex items-center justify-center space-x-2">
+                                <svg class="w-4 h-4 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2zM3 16a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2z"></path>
+                                </svg>
+                                <span class="text-xs font-medium text-gray-600">TRASCINA</span>
+                                @if($image->is_primary)
+                                    <span class="text-xs bg-yellow-100 text-yellow-800 px-1 py-0.5 rounded font-bold">⭐</span>
+                                @endif
+                            </div>
+                            <div class="text-xs text-gray-500 mt-1">ID: {{ $image->id }}</div>
+                        </div>
+                        
+                        {{-- Image --}}
+                        <div class="relative aspect-square group">
+                            <img src="{{ $image->aws_url }}" 
+                                 alt="{{ $image->alt_text ?: $product->name }}"
+                                 class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200">
+                            
+                            {{-- Action Buttons --}}
+                            <div class="absolute top-2 right-2 flex space-x-1">
+                                @if(!$image->is_primary)
+                                    <button wire:click="setPrimaryImage({{ $image->id }})"
+                                            class="bg-yellow-500 text-white p-1 rounded text-xs hover:bg-yellow-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                                            title="Imposta come principale">
+                                        ⭐
+                                    </button>
+                                @endif
+                                <button wire:click="deleteImage({{ $image->id }})"
+                                        wire:confirm="Sei sicuro di voler eliminare questa immagine?"
+                                        class="bg-red-600 text-white p-1 rounded text-xs hover:bg-red-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                                        title="Elimina">
+                                    🗑️
                                 </button>
                             </div>
                         </div>
-                        <div class="p-6">
-                            
-                            {{-- Upload Section --}}
-                            @if($showImageUpload)
-                                <div class="mb-6 p-4 border-2 border-dashed border-blue-300 rounded-lg">
-                                    <div class="text-center">
-                                        <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
-                                            <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                        </svg>
-                                        <div class="mt-4">
-                                            <label class="cursor-pointer">
-                                                <span class="mt-2 block text-sm font-medium text-gray-900">
-                                                    Trascina le immagini qui o clicca per selezionare
-                                                </span>
-                                                <input type="file" 
-                                                       wire:model="uploadedImages" 
-                                                       multiple 
-                                                       accept="image/*" 
-                                                       class="sr-only">
-                                            </label>
-                                            <p class="mt-1 text-xs text-gray-500">
-                                                PNG, JPG, WebP fino a 10MB • Drag & drop per riordinare
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                            @endif
-
-                            {{-- Images Gallery con Drag & Drop --}}
-                            @if($product->images && $product->images->count() > 0)
-                                <div class="mb-4">
-                                    <div class="flex items-center justify-between mb-3">
-                                        <span class="text-sm font-medium text-gray-700">Trascina per riordinare • Clicca ⭐ per immagine principale</span>
-                                        <span class="text-xs text-gray-500">{{ $product->images->count() }} immagini</span>
-                                    </div>
-                                    
-                                    <div id="sortable-images" 
-                                         class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
-                                         wire:ignore>
-                                        @foreach($product->images->sortBy('sort_order') as $image)
-                                            <div class="image-item relative group bg-gray-100 rounded-lg overflow-hidden aspect-square border-2 {{ $image->is_primary ? 'border-yellow-400 ring-2 ring-yellow-200' : 'border-gray-200' }}"
-                                                 data-image-id="{{ $image->id }}">
-                                                
-                                                {{-- Drag Handle --}}
-                                                <div class="absolute top-2 left-2 cursor-move opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
-                                                    <div class="bg-black bg-opacity-50 text-white p-1 rounded text-xs">
-                                                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                                            <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"></path>
-                                                        </svg>
-                                                    </div>
-                                                </div>
-                                                
-                                                {{-- Primary Image Indicator --}}
-                                                @if($image->is_primary)
-                                                    <div class="absolute top-2 right-2 z-10">
-                                                        <div class="bg-yellow-400 text-yellow-900 px-2 py-1 rounded-full text-xs font-medium flex items-center">
-                                                            ⭐ Principale
-                                                        </div>
-                                                    </div>
-                                                @endif
-                                                
-                                                {{-- Image --}}
-                                                <img src="{{ $image->aws_url }}" 
-                                                     alt="{{ $image->alt_text ?: $product->name }}"
-                                                     class="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105">
-                                                
-                                                {{-- Overlay Controls --}}
-                                                <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all duration-200 flex items-center justify-center">
-                                                    <div class="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex space-x-2">
-                                                        
-                                                        {{-- Set Primary Button --}}
-                                                        @if(!$image->is_primary)
-                                                            <button wire:click="setPrimaryImage({{ $image->id }})"
-                                                                    class="bg-yellow-500 hover:bg-yellow-600 text-white p-2 rounded-full transition-colors duration-200"
-                                                                    title="Imposta come principale">
-                                                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                                                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path>
-                                                                </svg>
-                                                            </button>
-                                                        @endif
-                                                        
-                                                        {{-- Delete Button --}}
-                                                        <button wire:click="deleteImage({{ $image->id }})"
-                                                                wire:confirm="Sei sicuro di voler eliminare questa immagine?"
-                                                                class="bg-red-500 hover:bg-red-600 text-white p-2 rounded-full transition-colors duration-200"
-                                                                title="Elimina immagine">
-                                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                                                            </svg>
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                                
-                                                {{-- Alt Text Input --}}
-                                                <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent p-2">
-                                                    <input type="text" 
-                                                           value="{{ $image->alt_text }}"
-                                                           placeholder="Alt text per SEO..."
-                                                           class="w-full text-xs bg-white bg-opacity-90 border-0 rounded px-2 py-1 text-gray-900 placeholder-gray-600 focus:bg-opacity-100 focus:ring-1 focus:ring-blue-500"
-                                                           onchange="updateAltText({{ $image->id }}, this.value)">
-                                                </div>
-                                            </div>
-                                        @endforeach
-                                    </div>
-                                </div>
-                                
-                                {{-- Sort Instructions --}}
-                                <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
-                                    <div class="flex items-start space-x-2">
-                                        <svg class="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
-                                        </svg>
-                                        <div>
-                                            <strong>Suggerimenti:</strong>
-                                            <ul class="mt-1 space-y-1">
-                                                <li>• Trascina le immagini per riordinarle</li>
-                                                <li>• Clicca ⭐ per impostare l'immagine principale</li>
-                                                <li>• Aggiungi alt text per migliorare il SEO</li>
-                                                <li>• L'immagine principale appare per prima nel catalogo</li>
-                                            </ul>
-                                        </div>
-                                    </div>
-                                </div>
-                            @else
-                                <div class="text-center py-8">
-                                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 48 48">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6 6l-1-1m1 1l4 4m-4-4v6m0-6h6m-6 0l-1-1"/>
-                                    </svg>
-                                    <p class="mt-2 text-sm text-gray-500">Nessuna immagine caricata</p>
-                                    <button wire:click="$set('showImageUpload', true)" 
-                                            class="mt-2 inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-blue-600 hover:text-blue-500">
-                                        Carica prima immagine
-                                    </button>
-                                </div>
-                            @endif
+                        
+                        {{-- Alt Text --}}
+                        <div class="p-2">
+                            <input type="text" 
+                                   value="{{ $image->alt_text ?? '' }}"
+                                   placeholder="Alt text per SEO..."
+                                   class="w-full text-xs border rounded px-2 py-1 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                   wire:change="updateImageAltText({{ $image->id }}, $event.target.value)">
                         </div>
                     </div>
-                </div>
+                @endforeach
+            </div>
+            
+        @else
+            {{-- Empty State --}}
+            <div class="text-center py-8">
+                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 48 48">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6 6l-1-1m1 1l4 4m-4-4v6m0-6h6m-6 0l-1-1"/>
+                </svg>
+                <p class="mt-2 text-sm text-gray-500 mb-4">Nessuna immagine caricata</p>
+                <button wire:click="$set('showImageUpload', true)" 
+                        class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                    📤 Carica prima immagine
+                </button>
+            </div>
+        @endif
+    </div>
+</div>
+
 
                 {{-- Sidebar --}}
                 <div class="space-y-6">
@@ -448,108 +401,27 @@
                     {{-- Tags Management --}}
                     <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                         <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
-                            <div class="flex justify-between items-center">
-                                <h3 class="text-lg font-medium text-gray-900">Tags</h3>
-                                <div class="flex space-x-2">
-                                    <button wire:click="$toggle('showTagForm')" 
-                                            class="px-3 py-1 bg-green-600 text-white text-xs rounded-md hover:bg-green-700">
-                                        {{ $showTagForm ? 'Annulla' : '+ Nuovo Tag' }}
-                                    </button>
-                                    <a href="{{ route('admin.tags.index') }}" 
-                                       class="px-3 py-1 bg-gray-500 text-white text-xs rounded-md hover:bg-gray-600"
-                                       title="Gestisci tutti i tag">
-                                        ⚙️ Gestisci
-                                    </a>
-                                </div>
-                            </div>
+                            <h3 class="text-lg font-medium text-gray-900">Tags</h3>
                         </div>
                         <div class="p-6">
-                            
-                            {{-- New Tag Form --}}
-                            @if($showTagForm)
-                                <div class="mb-4 p-3 border border-green-200 rounded-lg bg-green-50">
-                                    <div class="flex space-x-2">
-                                        <input type="text" 
-                                               wire:model="newTagName"
-                                               wire:keydown.enter="createTag"
-                                               placeholder="Nome del nuovo tag"
-                                               class="flex-1 text-sm border-gray-300 rounded-md shadow-sm focus:border-green-500 focus:ring-green-500">
-                                        <button wire:click="createTag" 
-                                                class="px-3 py-1 bg-green-600 text-white text-xs rounded-md hover:bg-green-700">
-                                            Crea
-                                        </button>
-                                        <button wire:click="$set('showTagForm', false)" 
-                                                class="px-3 py-1 bg-gray-400 text-white text-xs rounded-md hover:bg-gray-500">
-                                            ✕
-                                        </button>
-                                    </div>
-                                    @error('newTagName') 
-                                        <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> 
-                                    @enderror
-                                </div>
-                            @endif
-                            
-                            {{-- Tags List --}}
                             @if($tags && $tags->count() > 0)
                                 <div class="space-y-3">
                                     @foreach($tags as $tag)
-                                        <div class="flex items-center justify-between group">
-                                            <div class="flex items-center flex-1">
-                                                <input type="checkbox" 
-                                                       wire:model="selectedTags" 
-                                                       wire:change="updateTags"
-                                                       value="{{ $tag->id }}"
-                                                       class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
-                                                
-                                                @if($editingTag === $tag->id)
-                                                    <div class="ml-2 flex items-center space-x-2 flex-1">
-                                                        <input type="text" 
-                                                               wire:model="editTagName"
-                                                               wire:keydown.enter="saveTag"
-                                                               wire:keydown.escape="cancelTagEdit"
-                                                               class="flex-1 text-sm border-blue-300 rounded border focus:border-blue-500 focus:ring-blue-500"
-                                                               autofocus>
-                                                        <button wire:click="saveTag" 
-                                                                class="px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700">
-                                                            ✓
-                                                        </button>
-                                                        <button wire:click="cancelTagEdit" 
-                                                                class="px-2 py-1 bg-gray-400 text-white text-xs rounded hover:bg-gray-500">
-                                                            ✕
-                                                        </button>
-                                                    </div>
-                                                    @error('editTagName') 
-                                                        <span class="text-red-500 text-xs ml-2">{{ $message }}</span> 
-                                                    @enderror
-                                                @else
-                                                    <span wire:click="startEditingTag({{ $tag->id }})" 
-                                                          class="ml-2 text-sm text-gray-700 cursor-pointer hover:text-blue-600 hover:bg-blue-50 px-2 py-1 rounded transition-colors duration-200"
-                                                          title="Clicca per modificare">
-                                                        {{ $tag->name }}
-                                                    </span>
-                                                @endif
-                                            </div>
-                                            
-                                            @if($editingTag !== $tag->id)
-                                                <div class="opacity-0 group-hover:opacity-100 flex space-x-1 transition-opacity duration-200">
-                                                    <button wire:click="startEditingTag({{ $tag->id }})"
-                                                            class="px-2 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600"
-                                                            title="Modifica tag">
-                                                        ✏️
-                                                    </button>
-                                                </div>
-                                            @endif
-                                        </div>
+                                        <label class="flex items-center">
+                                            <input type="checkbox" 
+                                                   wire:model="selectedTags" 
+                                                   wire:change="updateTags"
+                                                   value="{{ $tag->id }}"
+                                                   class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
+                                            <span class="ml-2 text-sm text-gray-700">{{ $tag->name }}</span>
+                                        </label>
                                     @endforeach
                                 </div>
                             @else
                                 <div class="text-center py-4">
                                     <p class="text-sm text-gray-500">
                                         Nessun tag disponibile. 
-                                        <button wire:click="$set('showTagForm', true)" 
-                                                class="text-blue-600 hover:text-blue-800 underline">
-                                            Crea il primo tag
-                                        </button>
+                                        <span class="text-xs block mt-1">Crea dei tag per organizzare i prodotti.</span>
                                     </p>
                                 </div>
                             @endif
@@ -577,58 +449,12 @@
 
 {{-- Toast Notifications --}}
 <script>
-    // Existing events
     window.addEventListener('field-saved', event => {
-        showToast('✅ Campo salvato: ' + event.detail.field, 'success');
+        // Potresti aggiungere notifiche toast qui
+        console.log('Campo salvato:', event.detail.field);
     });
     
     window.addEventListener('status-changed', event => {
-        showToast('🔄 Status cambiato: ' + event.detail.status, 'info');
+        console.log('Status cambiato:', event.detail.status);
     });
-    
-    // New events for tags and categories
-    window.addEventListener('tag-created', event => {
-        showToast('🏷️ Tag creato: ' + event.detail.name, 'success');
-    });
-    
-    window.addEventListener('tag-deleted', event => {
-        showToast('🗑️ Tag eliminato: ' + event.detail.name, 'warning');
-    });
-    
-    window.addEventListener('category-created', event => {
-        showToast('📁 Categoria creata: ' + event.detail.name, 'success');
-    });
-    
-    window.addEventListener('category-deleted', event => {
-        showToast('🗑️ Categoria eliminata: ' + event.detail.name, 'warning');
-    });
-    
-    window.addEventListener('tag-updated', event => {
-        showToast('✏️ Tag aggiornato: ' + event.detail.name, 'success');
-    });
-    
-    // Simple toast function
-    function showToast(message, type = 'info') {
-        const toast = document.createElement('div');
-        const colors = {
-            success: 'bg-green-500',
-            error: 'bg-red-500', 
-            warning: 'bg-yellow-500',
-            info: 'bg-blue-500'
-        };
-        
-        toast.className = `fixed top-4 right-4 ${colors[type]} text-white px-4 py-2 rounded-md shadow-lg z-50 transform transition-all duration-300 translate-x-full`;
-        toast.textContent = message;
-        
-        document.body.appendChild(toast);
-        
-        // Slide in
-        setTimeout(() => toast.classList.remove('translate-x-full'), 100);
-        
-        // Slide out and remove
-        setTimeout(() => {
-            toast.classList.add('translate-x-full');
-            setTimeout(() => document.body.removeChild(toast), 300);
-        }, 3000);
-    }
 </script>

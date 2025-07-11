@@ -197,7 +197,7 @@
                                    class="text-blue-600 hover:text-blue-900">
                                     Visualizza
                                 </a>
-                                <a href="{{ route('admin.products.edit', $product) }}" 
+                                <a href="{{ route('admin.products.show', $product) }}" 
                                    class="text-yellow-600 hover:text-yellow-900">
                                     Modifica
                                 </a>

@@ -44,6 +44,7 @@ class Product extends Model
         'meta_title',
         'meta_description',
         'meta_keywords',
+        'primary_image_id', // ✨ NUOVO per Advanced Image Gallery
     ];
 
     /**
@@ -132,18 +133,38 @@ class Product extends Model
                     ->withTimestamps();
     }
 
-    /**
-     * Immagini collegate al prodotto (polymorphic)
-     */
-    public function images()
-{
-    return $this->morphMany(Image::class, 'imageable')
-                ->where('type', 'product')
-                ->where('status', 'active');
-}
+    // ===================================================================
+    // RELAZIONI IMMAGINI - ADVANCED IMAGE GALLERY ✨
+    // ===================================================================
 
     /**
-     * Immagine principale del prodotto
+     * Tutte le immagini collegate al prodotto (polymorphic) - Advanced Gallery
+     */
+    public function galleryImages(): MorphMany
+    {
+        return $this->morphMany(Image::class, 'imageable')->ordered();
+    }
+
+    /**
+     * Relazione con l'immagine principale designata
+     */
+    public function primaryImage(): BelongsTo
+    {
+        return $this->belongsTo(Image::class, 'primary_image_id');
+    }
+
+    /**
+     * Immagini collegate al prodotto (compatibilità con sistema esistente)
+     */
+    public function images()
+    {
+        return $this->morphMany(Image::class, 'imageable')
+                    ->where('type', 'product')
+                    ->where('status', 'active');
+    }
+
+    /**
+     * Immagine principale del prodotto (compatibilità con sistema esistente)
      */
     public function mainImage(): MorphOne
     {
@@ -230,6 +251,22 @@ class Product extends Model
     }
 
     /**
+     * Scope per prodotti con immagini ✨ NUOVO
+     */
+    public function scopeWithImages($query)
+    {
+        return $query->whereHas('galleryImages');
+    }
+
+    /**
+     * Scope per prodotti senza immagini ✨ NUOVO
+     */
+    public function scopeWithoutImages($query)
+    {
+        return $query->whereDoesntHave('galleryImages');
+    }
+
+    /**
      * Scope per ricerca full-text
      */
     public function scopeSearch($query, $search)
@@ -276,8 +313,48 @@ class Product extends Model
     }
 
     // ===================================================================
-    // ACCESSORS & MUTATORS
+    // ACCESSORS & MUTATORS - ADVANCED IMAGE GALLERY ✨
     // ===================================================================
+
+    /**
+     * Ottieni l'immagine principale (nuovo sistema) ✨
+     */
+    public function getPrimaryImageAttribute(): ?Image
+    {
+        // Se abbiamo un primary_image_id, usa quella
+        if ($this->primary_image_id && $this->primaryImage) {
+            return $this->primaryImage;
+        }
+
+        // Altrimenti prendi la prima immagine della gallery ordinata
+        return $this->galleryImages()->completed()->first();
+    }
+
+    /**
+     * Ottieni URL dell'immagine principale (nuovo sistema) ✨
+     */
+    public function getPrimaryImageUrlAttribute(): ?string
+    {
+        return $this->primary_image?->url;
+    }
+
+    /**
+     * Ottieni alt text dell'immagine principale (nuovo sistema) ✨
+     */
+    public function getPrimaryImageAltAttribute(): ?string
+    {
+        return $this->primary_image?->alt_text ?? $this->name;
+    }
+
+    /**
+     * Ottieni tutte le immagini tranne quella principale (nuovo sistema) ✨
+     */
+    public function getSecondaryImagesAttribute()
+    {
+        return $this->galleryImages->reject(function ($image) {
+            return $this->isPrimaryImage($image);
+        });
+    }
 
     /**
      * Ottieni il prezzo formattato
@@ -320,10 +397,16 @@ class Product extends Model
     }
 
     /**
-     * Ottieni l'immagine principale
+     * Ottieni l'immagine principale (compatibilità sistema esistente)
      */
     public function getMainImageAttribute(): ?string
     {
+        // Prova prima con il nuovo sistema
+        if ($this->primary_image_url) {
+            return $this->primary_image_url;
+        }
+
+        // Fallback al sistema JSON esistente
         if (!$this->images || !is_array($this->images)) {
             return null;
         }
@@ -332,10 +415,16 @@ class Product extends Model
     }
 
     /**
-     * Ottieni tutte le immagini tranne la principale
+     * Ottieni tutte le immagini tranne la principale (compatibilità sistema esistente)
      */
     public function getGalleryImagesAttribute(): array
     {
+        // Prova prima con il nuovo sistema
+        if ($this->galleryImages->isNotEmpty()) {
+            return $this->secondary_images->pluck('url')->toArray();
+        }
+
+        // Fallback al sistema JSON esistente
         if (!$this->images || !is_array($this->images)) {
             return [];
         }
@@ -344,10 +433,16 @@ class Product extends Model
     }
 
     /**
-     * Ottieni la URL dell'immagine principale
+     * Ottieni la URL dell'immagine principale (compatibilità sistema esistente)
      */
     public function getMainImageUrlAttribute(): ?string
     {
+        // Prova prima con il nuovo sistema
+        if ($this->primary_image_url) {
+            return $this->primary_image_url;
+        }
+
+        // Fallback al sistema JSON esistente
         if (!$this->main_image) {
             return null;
         }
@@ -454,8 +549,69 @@ class Product extends Model
     }
 
     // ===================================================================
-    // HELPER METHODS
+    // HELPER METHODS - ADVANCED IMAGE GALLERY ✨
     // ===================================================================
+
+    /**
+     * Imposta un'immagine come principale ✨
+     */
+    public function setPrimaryImage(Image $image): void
+    {
+        // Verifica che l'immagine appartenga a questo prodotto
+        if ($image->imageable_type !== static::class || $image->imageable_id !== $this->id) {
+            throw new \InvalidArgumentException('L\'immagine non appartiene a questo prodotto');
+        }
+
+        $this->update(['primary_image_id' => $image->id]);
+    }
+
+    /**
+     * Rimuovi l'immagine principale ✨
+     */
+    public function clearPrimaryImage(): void
+    {
+        $this->update(['primary_image_id' => null]);
+    }
+
+    /**
+     * Controlla se un'immagine è quella principale ✨
+     */
+    public function isPrimaryImage(Image $image): bool
+    {
+        return $this->primary_image_id === $image->id;
+    }
+
+    /**
+     * Aggiungi un'immagine al prodotto (nuovo sistema) ✨
+     */
+    public function addGalleryImage(Image $image): void
+    {
+        $this->galleryImages()->save($image);
+        
+        // Se è la prima immagine, impostala come principale
+        if ($this->galleryImages()->count() === 1 && !$this->primary_image_id) {
+            $this->setPrimaryImage($image);
+        }
+    }
+
+    /**
+     * Rimuovi un'immagine dalla gallery ✨
+     */
+    public function removeGalleryImage(Image $image): void
+    {
+        // Se è l'immagine principale, rimuovi il riferimento
+        if ($this->isPrimaryImage($image)) {
+            $this->clearPrimaryImage();
+            
+            // Imposta la prossima immagine come principale se disponibile
+            $nextImage = $this->galleryImages()->where('id', '!=', $image->id)->first();
+            if ($nextImage) {
+                $this->setPrimaryImage($nextImage);
+            }
+        }
+
+        $image->delete(); // Soft delete
+    }
 
     /**
      * Verifica se il prodotto è disponibile
@@ -474,35 +630,44 @@ class Product extends Model
     }
 
     /**
-     * Verifica se ha immagini
+     * Verifica se ha immagini (nuovo sistema con fallback) ✨
      */
     public function hasImages(): bool
     {
-        return $this->images()->exists();
+        return $this->galleryImages()->exists() || $this->images()->exists();
     }
 
     /**
-     * Ottieni il numero di immagini
+     * Ottieni il numero di immagini (nuovo sistema con fallback) ✨
      */
     public function getImageCountAttribute(): int
     {
-        return $this->images()->count();
+        $galleryCount = $this->galleryImages()->count();
+        
+        if ($galleryCount > 0) {
+            return $galleryCount;
+        }
+
+        // Fallback al sistema JSON
+        return is_array($this->images) ? count($this->images) : 0;
     }
 
     /**
-     * Aggiungi un'immagine al prodotto
+     * Aggiungi un'immagine al prodotto (compatibilità sistema esistente)
      */
     public function addImage(Image $image): void
     {
-        $this->images()->save($image);
+        // Usa il nuovo sistema
+        $this->addGalleryImage($image);
     }
 
     /**
-     * Rimuovi un'immagine dal prodotto
+     * Rimuovi un'immagine dal prodotto (compatibilità sistema esistente)
      */
     public function removeImage(Image $image): void
     {
-        $image->delete();
+        // Usa il nuovo sistema
+        $this->removeGalleryImage($image);
     }
 
     /**
@@ -756,13 +921,61 @@ class Product extends Model
     }
 
     /**
-     * Activity Log Configuration
+     * Activity Log Configuration ✨ AGGIORNATO
      */
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['name', 'sku', 'base_price', 'is_active', 'is_featured', 'category_id'])
+            ->logOnly([
+                'name', 
+                'sku', 
+                'base_price', 
+                'is_active', 
+                'is_featured', 
+                'category_id',
+                'primary_image_id' // ✨ NUOVO
+            ])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
+    }
+
+    // ===================================================================
+    // BOOT METHOD - EVENT HANDLERS ✨
+    // ===================================================================
+
+    /**
+     * Boot method per eventi automatici
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        // Genera automaticamente lo slug dal nome
+        static::creating(function ($product) {
+            if (!$product->slug) {
+                $product->slug = \Str::slug($product->name);
+            }
+        });
+
+        static::updating(function ($product) {
+            if ($product->isDirty('name') && !$product->isDirty('slug')) {
+                $product->slug = \Str::slug($product->name);
+            }
+        });
+
+        // Quando si elimina un prodotto, gestisci le immagini ✨ AGGIORNATO
+        static::deleting(function ($product) {
+            // Soft delete delle immagini della gallery
+            $product->galleryImages()->delete();
+            
+            // Mantieni compatibilità con sistema esistente
+            $product->images()->delete();
+        });
+
+        // Quando si ripristina un prodotto, ripristina le immagini ✨ AGGIORNATO
+        static::restoring(function ($product) {
+            $product->galleryImages()->withTrashed()->restore();
+            $product->images()->withTrashed()->restore();
+        });
     }
 }
