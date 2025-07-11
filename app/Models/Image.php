@@ -1,4 +1,5 @@
 <?php
+// app/Models/Image.php - CLEANED VERSION (Remove primary logic)
 
 namespace App\Models;
 
@@ -15,7 +16,7 @@ class Image extends Model
     use HasFactory, SoftDeletes, LogsActivity;
 
     protected $fillable = [
-        // Campi esistenti dal tuo schema
+        // Core fields
         'clean_name',
         'original_filename',
         'aws_key',
@@ -36,16 +37,14 @@ class Image extends Model
         'variants',
         'uploaded_by',
         
-        // Nuovi campi per Advanced Gallery
+        // Gallery fields
         'sort_order',
-        'is_primary',
         'caption',
         'dominant_color',
         'processing_status',
     ];
 
     protected $casts = [
-        // Cast esistenti
         'tags' => 'array',
         'variants' => 'array',
         'file_size' => 'integer',
@@ -53,10 +52,7 @@ class Image extends Model
         'height' => 'integer',
         'is_public' => 'boolean',
         'processed_at' => 'datetime',
-        
-        // Nuovi cast per Advanced Gallery
         'sort_order' => 'integer', 
-        'is_primary' => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',
@@ -118,6 +114,16 @@ class Image extends Model
         return $query->where('is_public', true);
     }
 
+    public function isBeauty(): bool
+    {
+        return $this->type === 'beauty';
+    }
+
+    public function scopeBeauty($query)
+    {
+        return $query->where('type', 'beauty');
+    }
+
     /**
      * Genera automaticamente l'alt text se non presente
      */
@@ -138,11 +144,16 @@ class Image extends Model
     }
 
     /**
-     * URL pulito per il frontend (usando il tuo sistema esistente)
+     * URL pulito per il frontend
      */
     public function getUrlAttribute(): string
     {
-        // Usa il tuo sistema di clean URLs
+        // Se aws_url inizia con s3://, genera l'URL HTTP
+        if (str_starts_with($this->aws_url, 's3://')) {
+            return \Storage::disk('s3')->url($this->aws_key);
+        }
+        
+        // Altrimenti usa il sistema di clean URLs
         return url('/img/' . $this->clean_name);
     }
 
@@ -159,7 +170,6 @@ class Image extends Model
             if ($height) $params['h'] = $height;
             if ($quality !== 80) $params['q'] = $quality;
             
-            // Se hai un servizio di image processing, aggiungi i parametri
             $url .= '?' . http_build_query($params);
         }
         
@@ -184,9 +194,7 @@ class Image extends Model
             }
         }
 
-        // Aggiungi sempre l'immagine originale
         $srcset[] = $this->aws_url . " {$this->width}w";
-
         return implode(', ', $srcset);
     }
 
@@ -232,6 +240,10 @@ class Image extends Model
     }
 
     /**
+     * ✨ REMOVED: is_primary logic - ora è gestita dal Product model
+     */
+
+    /**
      * Aggiorna l'ordine delle immagini
      */
     public static function updateOrder(array $imageIds): void
@@ -262,7 +274,6 @@ class Image extends Model
             return $value;
         }
         
-        // Colore di fallback basato sul tipo
         $colors = [
             'product' => '#3B82F6',
             'category' => '#10B981', 
@@ -288,6 +299,51 @@ class Image extends Model
     }
 
     /**
+     * ✨ NEW: Check if this image is primary for any product
+     */
+    public function isPrimaryForProduct($productId = null): bool
+    {
+        if ($productId) {
+            return Product::where('id', $productId)
+                         ->where('primary_image_id', $this->id)
+                         ->exists();
+        }
+        
+        // Check if it's primary for ANY product
+        return Product::where('primary_image_id', $this->id)->exists();
+    }
+
+    /**
+     * ✨ NEW: Check if this image is beauty for any product
+     */
+    public function isBeautyForProduct($productId = null): bool
+    {
+        if ($productId) {
+            return Product::where('id', $productId)
+                         ->where('beauty_image_id', $this->id)
+                         ->exists();
+        }
+        
+        return Product::where('beauty_image_id', $this->id)->exists();
+    }
+
+    /**
+     * ✨ NEW: Get products where this image is primary
+     */
+    public function productsAsPrimary()
+    {
+        return Product::where('primary_image_id', $this->id);
+    }
+
+    /**
+     * ✨ NEW: Get products where this image is beauty
+     */
+    public function productsAsBeauty()
+    {
+        return Product::where('beauty_image_id', $this->id);
+    }
+
+    /**
      * Activity Log configuration
      */
     public function getActivitylogOptions(): LogOptions
@@ -298,7 +354,6 @@ class Image extends Model
                 'alt_text',
                 'caption',
                 'sort_order',
-                'is_primary',
                 'status',
                 'processing_status'
             ])
@@ -321,6 +376,17 @@ class Image extends Model
                     $image->imageable_id
                 );
             }
+        });
+
+        // ✨ NEW: Quando si elimina un'immagine, rimuovi i riferimenti primary/beauty
+        static::deleting(function ($image) {
+            // Rimuovi riferimenti primary_image_id
+            Product::where('primary_image_id', $image->id)
+                   ->update(['primary_image_id' => null]);
+            
+            // Rimuovi riferimenti beauty_image_id
+            Product::where('beauty_image_id', $image->id)
+                   ->update(['beauty_image_id' => null]);
         });
     }
 }

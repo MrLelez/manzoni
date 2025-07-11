@@ -20,6 +20,7 @@ class ImageController extends Controller
      */
     public function serve(string $cleanName)
     {
+        
         // Remove .jpg extension if present
         $cleanName = preg_replace('/\.(jpg|jpeg|png|webp|gif)$/i', '', $cleanName);
         

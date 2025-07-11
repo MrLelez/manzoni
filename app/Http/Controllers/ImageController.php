@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Services\ImageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use App\Models\Image;
 
 class ImageController extends Controller
 {
@@ -19,24 +20,48 @@ class ImageController extends Controller
      * Serve image by clean name: /img/cestino-roma-blue.jpg
      */
     public function serve(string $cleanName)
+{
+    $cleanName = preg_replace('/\.(jpg|jpeg|png|webp|gif)$/i', '', $cleanName);
+    
+    $image = Image::where('clean_name', $cleanName)->first();
+    
+    if (!$image) {
+        abort(404, 'Image not found');
+    }
+
+    // FIX: NON usare $image->aws_url, genera l'URL corretto
+    $correctUrl = Storage::disk('s3')->url($image->aws_key);
+    
+    \Log::info('S3 redirect', [
+        'clean_name' => $cleanName,
+        'aws_key' => $image->aws_key,
+        'old_aws_url' => $image->aws_url,
+        'new_correct_url' => $correctUrl
+    ]);
+
+    return redirect($correctUrl);
+}
+
+    /**
+     * Genera l'URL S3 corretto basato sulla configurazione attuale
+     */
+    private function getCorrectS3Url(Image $image): string
     {
-        // Remove .jpg extension if present
-        $cleanName = preg_replace('/\.(jpg|jpeg|png|webp|gif)$/i', '', $cleanName);
-        
-        $image = $this->imageService->getImageByCleanName($cleanName);
-        
-        if (!$image) {
-            abort(404, 'Image not found');
+        // Usa il disk S3 configurato per generare l'URL corretto
+        try {
+            return Storage::disk('s3')->url($image->aws_key);
+        } catch (\Exception $e) {
+            \Log::error('Error generating S3 URL', [
+                'aws_key' => $image->aws_key,
+                'error' => $e->getMessage()
+            ]);
+            
+            // Fallback: costruisci manualmente l'URL
+            $bucket = config('filesystems.disks.s3.bucket');
+            $region = config('filesystems.disks.s3.region');
+            
+            return "https://{$bucket}.s3.{$region}.amazonaws.com/{$image->aws_key}";
         }
-
-        // Check if AWS URL is accessible
-        if (!Storage::disk('s3')->exists($image->aws_key)) {
-            abort(404, 'Image file not found');
-        }
-
-        // Redirect to AWS URL with cache headers
-        return redirect($image->aws_url)
-            ->header('Cache-Control', 'public, max-age=31536000'); // 1 year cache
     }
 
     /**
@@ -45,7 +70,7 @@ class ImageController extends Controller
     public function upload(Request $request)
     {
         $request->validate([
-            'image' => 'required|image|mimes:jpeg,png,webp|max:10240', // 10MB
+            'image' => 'required|image|mimes:jpeg,png,webp|max:10240',
             'type' => 'required|in:product,category,content',
             'custom_name' => 'nullable|string|max:100',
             'alt_text' => 'nullable|string|max:255',
@@ -54,8 +79,8 @@ class ImageController extends Controller
         try {
             $image = $this->imageService->uploadImage(
                 $request->file('image'),
+                null, // imageable (se serve)
                 $request->input('type'),
-                $request->input('custom_name'),
                 auth()->id()
             );
 
@@ -68,18 +93,50 @@ class ImageController extends Controller
                 'image' => [
                     'id' => $image->id,
                     'clean_name' => $image->clean_name,
-                    'clean_url' => $image->clean_url,
+                    'url' => $image->url,
                     'aws_url' => $image->aws_url,
-                    'dimensions' => $image->dimensions,
+                    'dimensions' => $image->formatted_dimensions,
                     'file_size' => $image->formatted_size,
                 ]
             ]);
 
         } catch (\Exception $e) {
+            \Log::error('Image upload failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
             return response()->json([
                 'success' => false,
                 'error' => $e->getMessage()
             ], 400);
         }
+    }
+
+    /**
+     * Comando per aggiornare tutti gli URL S3 nel database
+     */
+    public function fixAllS3Urls()
+    {
+        if (!app()->environment('local')) {
+            abort(403, 'Only available in local environment');
+        }
+
+        $images = Image::whereNotNull('aws_key')->get();
+        $updated = 0;
+
+        foreach ($images as $image) {
+            $correctUrl = $this->getCorrectS3Url($image);
+            
+            if ($image->aws_url !== $correctUrl) {
+                $image->update(['aws_url' => $correctUrl]);
+                $updated++;
+            }
+        }
+
+        return response()->json([
+            'message' => "Updated {$updated} image URLs",
+            'total_checked' => $images->count()
+        ]);
     }
 }

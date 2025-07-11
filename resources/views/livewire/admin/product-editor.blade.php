@@ -1,6 +1,10 @@
 {{-- resources/views/livewire/admin/product-editor.blade.php --}}
+{{-- ✨ BEAUTY SYSTEM COMPLETE VERSION ✨ --}}
 
 <div>
+    {{-- Toast Notifications Container --}}
+    <div id="toast-container" class="fixed top-4 right-4 z-50"></div>
+
     {{-- Header --}}
     <x-slot name="header">
         <div class="flex justify-between items-center">
@@ -25,10 +29,10 @@
     </x-slot>
 
     <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             
             {{-- Quick Actions Bar --}}
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg mb-6">
                 <div class="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center space-x-4">
@@ -65,10 +69,11 @@
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {{-- Main Layout: Content + Sidebar --}}
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 
-                {{-- Main Content --}}
-                <div class="lg:col-span-2 space-y-6">
+                {{-- Main Content (2/3 width) --}}
+                <div class="lg:col-span-8 space-y-6">
                     
                     {{-- Basic Info --}}
                     <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
@@ -136,51 +141,56 @@
                                 @endif
                             </div>
 
-                            {{-- Price Field --}}
-                            <div class="space-y-2">
-                                <label class="block text-sm font-medium text-gray-700">Prezzo Base</label>
-                                @if($editingField === 'base_price')
-                                    <div class="flex items-center space-x-2">
-                                        <div class="relative flex-1">
-                                            <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">€</span>
-                                            <input type="number" 
-                                                   step="0.01"
-                                                   wire:model="base_price"
-                                                   wire:keydown.enter="saveField('base_price')"
-                                                   wire:keydown.escape="stopEditing"
-                                                   class="pl-8 border-blue-300 focus:border-blue-500 focus:ring-blue-500 rounded-md shadow-sm w-full"
-                                                   autofocus>
+                            {{-- Price and Category Row --}}
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {{-- Price Field --}}
+                                <div class="space-y-2">
+                                    <label class="block text-sm font-medium text-gray-700">Prezzo Base</label>
+                                    @if($editingField === 'base_price')
+                                        <div class="flex items-center space-x-2">
+                                            <div class="relative flex-1">
+                                                <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">€</span>
+                                                <input type="number" 
+                                                       step="0.01"
+                                                       wire:model="base_price"
+                                                       wire:keydown.enter="saveField('base_price')"
+                                                       wire:keydown.escape="stopEditing"
+                                                       class="pl-8 border-blue-300 focus:border-blue-500 focus:ring-blue-500 rounded-md shadow-sm w-full"
+                                                       autofocus>
+                                            </div>
+                                            <button wire:click="saveField('base_price')" 
+                                                    class="px-3 py-2 bg-green-600 text-white text-xs rounded-md hover:bg-green-700">
+                                                ✓
+                                            </button>
+                                            <button wire:click="stopEditing" 
+                                                    class="px-3 py-2 bg-gray-400 text-white text-xs rounded-md hover:bg-gray-500">
+                                                ✕
+                                            </button>
                                         </div>
-                                        <button wire:click="saveField('base_price')" 
-                                                class="px-3 py-2 bg-green-600 text-white text-xs rounded-md hover:bg-green-700">
-                                            ✓
-                                        </button>
-                                        <button wire:click="stopEditing" 
-                                                class="px-3 py-2 bg-gray-400 text-white text-xs rounded-md hover:bg-gray-500">
-                                            ✕
-                                        </button>
-                                    </div>
-                                    @error('base_price') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
-                                @else
-                                    <div wire:click="startEditing('base_price')" 
-                                         class="text-xl font-bold text-blue-600 hover:bg-blue-50 p-2 rounded cursor-pointer transition-all duration-200">
-                                        €{{ number_format($base_price, 2, ',', '.') }}
-                                    </div>
-                                @endif
-                            </div>
+                                        @error('base_price') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                                    @else
+                                        <div wire:click="startEditing('base_price')" 
+                                             class="text-xl font-bold text-blue-600 hover:bg-blue-50 p-2 rounded cursor-pointer transition-all duration-200">
+                                            €{{ number_format($base_price, 2, ',', '.') }}
+                                        </div>
+                                    @endif
+                                </div>
 
-                            {{-- Category Field --}}
-                            <div class="space-y-2">
-                                <label class="block text-sm font-medium text-gray-700">Categoria</label>
-                                <select wire:model="category_id" 
-                                        wire:change="updateCategory"
-                                        class="w-full border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-md shadow-sm">
-                                    <option value="">Seleziona categoria...</option>
-                                    @foreach($categories as $category)
-                                        <option value="{{ $category->id }}">{{ $category->name }}</option>
-                                    @endforeach
-                                </select>
-                                @error('category_id') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                                {{-- Category Field --}}
+                                <div class="space-y-2">
+                                    <label class="block text-sm font-medium text-gray-700">Categoria</label>
+                                    <select wire:model="category_id" 
+                                            wire:change="updateCategory"
+                                            class="w-full border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-md shadow-sm">
+                                        <option value="">Seleziona categoria...</option>
+                                        @if($categories && $categories->count() > 0)
+                            @foreach($categories as $category)
+                                            <option value="{{ $category->id }}">{{ $category->name }}</option>
+                                            @endforeach
+                        @endif
+                                    </select>
+                                    @error('category_id') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -224,158 +234,451 @@
                         </div>
                     </div>
 
-                    {{-- Images Section - WORKING VERSION --}}
-                    
-<div class="bg-white overflow-hidden shadow-sm sm:rounded-lg ">
+                   {{-- SISTEMA BEAUTY CON CATEGORIE ✨ --}}
+
+<div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
     <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
         <div class="flex justify-between items-center">
-            <h3 class="text-lg font-medium text-gray-900">
-                Immagini ({{ $product->images ? $product->images->count() : 0 }})
+            <h3 class="text-lg font-medium text-gray-900 flex items-center">
+                Gestione Immagini
+                <span class="inline-flex items-center justify-center w-6 h-6 ml-2 text-xs font-bold text-white bg-blue-600 rounded-full">
+                    {{ $product->image_count + $product->beauty_count }}
+                </span>
             </h3>
-            <button wire:click="$toggle('showImageUpload')" 
-                    class="px-3 py-1 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700">
-                {{ $showImageUpload ? 'Chiudi' : 'Aggiungi' }}
-            </button>
+            
+            <div class="flex space-x-2">
+                {{-- Bottone Aggiungi Immagine Normale --}}
+                <button wire:click="openUploadModal('gallery')" 
+                        class="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 flex items-center">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                    </svg>
+                    Aggiungi Immagine
+                </button>
+                
+                {{-- Bottone Aggiungi Beauty/Sfondo --}}
+                <button wire:click="openUploadModal('beauty')" 
+                        class="px-4 py-2 bg-purple-600 text-white text-sm rounded-md hover:bg-purple-700 flex items-center">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                    </svg>
+                    Aggiungi Sfondo
+                </button>
+            </div>
         </div>
     </div>
-    <div class="p-6">
+    
+    <div class="p-6 space-y-8">
         
-        {{-- Messages --}}
-        @if (session('message'))
-            <div class="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded">
-                {{ session('message') }}
+        {{-- GALLERY IMMAGINI NORMALI --}}
+        <div>
+            <div class="flex justify-between items-center mb-4">
+                <h4 class="text-lg font-medium text-gray-900 flex items-center">
+                    🖼️ Immagini Prodotto
+                    <span class="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
+                        {{ $product->gallery_count }} immagini
+                    </span>
+                    @if($product->hasPrimaryImage())
+                        <span class="ml-2 px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full">
+                            ⭐ Primary impostata
+                        </span>
+                    @endif
+                </h4>
             </div>
-        @endif
+            
+            @if($product->galleryImages && $product->galleryImages->count() > 0)
+                <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                    @foreach($product->galleryImages as $image)
+                        @php $isPrimary = $product->isPrimaryImage($image); @endphp
+                        
+                        <div class="relative group border-2 rounded-lg overflow-hidden {{ $isPrimary ? 'border-yellow-400' : 'border-gray-200' }}">
+                            {{-- Primary Badge --}}
+                            @if($isPrimary)
+                                <div class="absolute top-2 left-2 z-10 px-2 py-1 bg-yellow-500 text-white text-xs rounded-full font-medium">
+                                    ⭐ PRIMARY
+                                </div>
+                            @endif
+                            
+                            <div class="aspect-square">
+                                <img src="{{ $image->url }}" 
+                                     alt="{{ $image->alt_text ?: $product->name }}"
+                                     class="w-full h-full object-cover">
+                            </div>
+                            
+                            {{-- Actions on Hover --}}
+                            <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all">
+                                <div class="absolute bottom-2 right-2 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    {{-- Set Primary --}}
+                                    @if(!$isPrimary)
+                                        <button wire:click="setPrimaryImage({{ $image->id }})"
+                                                class="p-2 bg-yellow-500 text-white rounded hover:bg-yellow-600"
+                                                title="Imposta come PRIMARY">
+                                            ⭐
+                                        </button>
+                                    @else
+                                        <button wire:click="clearPrimaryImage"
+                                                class="p-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+                                                title="Rimuovi PRIMARY">
+                                            ⭐
+                                        </button>
+                                    @endif
+                                    
+                                    {{-- Delete --}}
+                                    <button wire:click="deleteGalleryImage({{ $image->id }})"
+                                            wire:confirm="Eliminare questa immagine?"
+                                            class="p-2 bg-red-600 text-white rounded hover:bg-red-700"
+                                            title="Elimina">
+                                        🗑️
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            {{-- Image Info --}}
+                            <div class="p-2 bg-white">
+                                <div class="text-xs text-gray-600 truncate">{{ $image->clean_name }}</div>
+                                <div class="text-xs text-gray-500">{{ $image->formatted_size }}</div>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            @else
+                <div class="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
+                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 48 48">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6 6l-1-1m1 1l4 4m-4-4v6m0-6h6m-6 0l-1-1"/>
+                    </svg>
+                    <h3 class="mt-2 text-sm font-medium text-gray-900">Nessuna immagine</h3>
+                    <p class="mt-1 text-sm text-gray-500">Carica le prime immagini del prodotto</p>
+                    <button wire:click="openUploadModal('gallery')" 
+                            class="mt-3 px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700">
+                        Aggiungi Prima Immagine
+                    </button>
+                </div>
+            @endif
+        </div>
         
-        @if (session('error'))
-            <div class="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-                {{ session('error') }}
+        {{-- ✨ BEAUTY CON CATEGORIE ✨ --}}
+        <div>
+            <div class="flex justify-between items-center mb-6">
+                <h4 class="text-lg font-medium text-gray-900 flex items-center">
+                    🎨 Immagini Sfondo/Marketing
+                    <span class="ml-2 px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded-full">
+                        {{ $product->beauty_count }} totali
+                    </span>
+                </h4>
+                <p class="text-xs text-gray-500">Organizza per: Sfondo Principale, Slideshow, Header</p>
             </div>
-        @endif
-        
-        {{-- Upload Section --}}
-        @if($showImageUpload)
-            <div class="mb-6 p-4 border-2 border-dashed border-blue-300 rounded-lg">
-                <div class="text-center mb-4">
+            
+            {{-- Beauty Categories Dashboard --}}
+            @if($product->beautyImages && $product->beauty_count > 0)
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    {{-- Sfondo Principale --}}
+                    <div class="bg-gradient-to-br from-orange-50 to-red-50 border border-orange-200 rounded-lg p-4">
+                        <div class="flex justify-between items-center mb-3">
+                            <h5 class="font-medium text-orange-900 flex items-center">
+                                🌅 Sfondo Principale
+                                <span class="ml-2 px-2 py-1 text-xs bg-orange-100 text-orange-800 rounded-full">
+                                    {{ $product->getBeautyByCategory('main')->count() }}
+                                </span>
+                            </h5>
+                        </div>
+                        
+                        @if($product->getBeautyByCategory('main')->count() > 0)
+                            <div class="grid grid-cols-2 gap-2">
+                                @foreach($product->getBeautyByCategory('main')->take(4) as $mainImage)
+                                    <div class="relative group">
+                                        <img src="{{ $mainImage->url }}" 
+                                             alt="{{ $mainImage->alt_text }}"
+                                             class="w-full h-16 object-cover rounded border border-orange-300">
+                                        <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all rounded">
+                                            <div class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button wire:click="removeFromBeautyCategory({{ $mainImage->id }})"
+                                                        class="p-1 bg-red-600 text-white rounded text-xs hover:bg-red-700"
+                                                        title="Rimuovi da Sfondo Principale">
+                                                    ✗
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @else
+                            <div class="text-center py-4">
+                                <div class="text-xs text-orange-600">Nessuno sfondo principale</div>
+                                <div class="text-xs text-orange-500 mt-1">Hover sulle immagini sotto per aggiungere</div>
+                            </div>
+                        @endif
+                    </div>
+                    
+                    {{-- Slideshow --}}
+                    <div class="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4">
+                        <div class="flex justify-between items-center mb-3">
+                            <h5 class="font-medium text-blue-900 flex items-center">
+                                🎬 Slideshow
+                                <span class="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
+                                    {{ $product->getBeautyByCategory('slideshow')->count() }}
+                                </span>
+                            </h5>
+                        </div>
+                        
+                        @if($product->getBeautyByCategory('slideshow')->count() > 0)
+                            <div class="grid grid-cols-2 gap-2">
+                                @foreach($product->getBeautyByCategory('slideshow')->take(4) as $slideImage)
+                                    <div class="relative group">
+                                        <img src="{{ $slideImage->url }}" 
+                                             alt="{{ $slideImage->alt_text }}"
+                                             class="w-full h-16 object-cover rounded border border-blue-300">
+                                        <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all rounded">
+                                            <div class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button wire:click="removeFromBeautyCategory({{ $slideImage->id }})"
+                                                        class="p-1 bg-red-600 text-white rounded text-xs hover:bg-red-700"
+                                                        title="Rimuovi da Slideshow">
+                                                    ✗
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @else
+                            <div class="text-center py-4">
+                                <div class="text-xs text-blue-600">Nessuna immagine slideshow</div>
+                                <div class="text-xs text-blue-500 mt-1">Hover sulle immagini sotto per aggiungere</div>
+                            </div>
+                        @endif
+                    </div>
+                    
+                    {{-- Header --}}
+                    <div class="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-lg p-4">
+                        <div class="flex justify-between items-center mb-3">
+                            <h5 class="font-medium text-green-900 flex items-center">
+                                📄 Header
+                                <span class="ml-2 px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">
+                                    {{ $product->getBeautyByCategory('header')->count() }}
+                                </span>
+                            </h5>
+                        </div>
+                        
+                        @if($product->getBeautyByCategory('header')->count() > 0)
+                            <div class="grid grid-cols-2 gap-2">
+                                @foreach($product->getBeautyByCategory('header')->take(4) as $headerImage)
+                                    <div class="relative group">
+                                        <img src="{{ $headerImage->url }}" 
+                                             alt="{{ $headerImage->alt_text }}"
+                                             class="w-full h-16 object-cover rounded border border-green-300">
+                                        <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all rounded">
+                                            <div class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button wire:click="removeFromBeautyCategory({{ $headerImage->id }})"
+                                                        class="p-1 bg-red-600 text-white rounded text-xs hover:bg-red-700"
+                                                        title="Rimuovi da Header">
+                                                    ✗
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @else
+                            <div class="text-center py-4">
+                                <div class="text-xs text-green-600">Nessuna immagine header</div>
+                                <div class="text-xs text-green-500 mt-1">Hover sulle immagini sotto per aggiungere</div>
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            @endif
+            
+            {{-- Tutte le Beauty Images con Assegnazione Categorie --}}
+            @if($product->beautyImages && $product->beautyImages->count() > 0)
+                <div>
+                    <h5 class="font-medium text-gray-900 mb-3">🗂️ Tutte le Immagini Sfondo (hover per assegnare categorie)</h5>
+                    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                        @foreach($product->beautyImages as $beautyImage)
+                            <div class="relative group border-2 border-purple-200 rounded-lg overflow-hidden">
+                                {{-- Category Badges --}}
+                                <div class="absolute top-2 left-2 z-10 flex flex-col space-y-1">
+                                    @if($beautyImage->beauty_category === 'main')
+                                        <span class="px-2 py-1 bg-orange-500 text-white text-xs rounded-full font-medium">🌅</span>
+                                    @endif
+                                    @if($beautyImage->beauty_category === 'slideshow')
+                                        <span class="px-2 py-1 bg-blue-500 text-white text-xs rounded-full font-medium">🎬</span>
+                                    @endif
+                                    @if($beautyImage->beauty_category === 'header')
+                                        <span class="px-2 py-1 bg-green-500 text-white text-xs rounded-full font-medium">📄</span>
+                                    @endif
+                                    @if(!$beautyImage->beauty_category)
+                                        <span class="px-2 py-1 bg-gray-500 text-white text-xs rounded-full font-medium">⚪</span>
+                                    @endif
+                                </div>
+                                
+                                <div class="aspect-video">
+                                    <img src="{{ $beautyImage->url }}" 
+                                         alt="{{ $beautyImage->alt_text ?: $product->name . ' - Sfondo' }}"
+                                         class="w-full h-full object-cover">
+                                </div>
+                                
+                                {{-- Category Assignment Actions on Hover --}}
+                                <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-60 transition-all">
+                                    <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <div class="flex flex-col space-y-2">
+                                            {{-- Assign to Main --}}
+                                            <button wire:click="assignBeautyCategory({{ $beautyImage->id }}, 'main')"
+                                                    class="px-3 py-2 bg-orange-500 text-white rounded text-xs hover:bg-orange-600 flex items-center"
+                                                    title="Assegna a Sfondo Principale">
+                                                🌅 Principale
+                                            </button>
+                                            
+                                            {{-- Assign to Slideshow --}}
+                                            <button wire:click="assignBeautyCategory({{ $beautyImage->id }}, 'slideshow')"
+                                                    class="px-3 py-2 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 flex items-center"
+                                                    title="Assegna a Slideshow">
+                                                🎬 Slideshow
+                                            </button>
+                                            
+                                            {{-- Assign to Header --}}
+                                            <button wire:click="assignBeautyCategory({{ $beautyImage->id }}, 'header')"
+                                                    class="px-3 py-2 bg-green-500 text-white rounded text-xs hover:bg-green-600 flex items-center"
+                                                    title="Assegna a Header">
+                                                📄 Header
+                                            </button>
+                                            
+                                            {{-- Remove Category --}}
+                                            @if($beautyImage->beauty_category)
+                                                <button wire:click="removeFromBeautyCategory({{ $beautyImage->id }})"
+                                                        class="px-3 py-2 bg-gray-500 text-white rounded text-xs hover:bg-gray-600 flex items-center"
+                                                        title="Rimuovi Categoria">
+                                                    ⚪ Rimuovi
+                                                </button>
+                                            @endif
+                                            
+                                            {{-- Delete --}}
+                                            <button wire:click="deleteBeautyImage({{ $beautyImage->id }})"
+                                                    wire:confirm="Eliminare questo sfondo?"
+                                                    class="px-3 py-2 bg-red-600 text-white rounded text-xs hover:bg-red-700 flex items-center"
+                                                    title="Elimina">
+                                                🗑️ Elimina
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                {{-- Image Info --}}
+                                <div class="p-2 bg-white">
+                                    <div class="text-xs text-gray-600 truncate">{{ $beautyImage->clean_name }}</div>
+                                    <div class="text-xs text-gray-500">{{ $beautyImage->formatted_size }}</div>
+                                    @if($beautyImage->beauty_category)
+                                        <div class="text-xs text-purple-600 font-medium mt-1">
+                                            {{ ucfirst($beautyImage->beauty_category) }}
+                                        </div>
+                                    @endif
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @else
+                <div class="text-center py-8 border-2 border-dashed border-purple-300 rounded-lg bg-purple-50">
+                    <svg class="mx-auto h-12 w-12 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 48 48">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4V2a1 1 0 011-1h8a1 1 0 011 1v2h4a1 1 0 011 1v1a1 1 0 01-1 1H4a1 1 0 01-1-1V5a1 1 0 011-1h3z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8H5z"/>
+                    </svg>
+                    <h3 class="mt-2 text-sm font-medium text-gray-900">Nessuna immagine sfondo</h3>
+                    <p class="mt-1 text-sm text-gray-500">Aggiungi immagini per sfondi, slideshow, header</p>
+                    <button wire:click="openUploadModal('beauty')" 
+                            class="mt-3 px-4 py-2 bg-purple-600 text-white text-sm rounded-md hover:bg-purple-700">
+                        Aggiungi Primo Sfondo
+                    </button>
+                </div>
+            @endif
+        </div>
+    </div>
+</div>
+
+{{-- MODAL UPLOAD (uguale a prima) --}}
+@if($showUploadModal)
+    <div class="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full m-4">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-lg font-medium text-gray-900">
+                        @if($uploadMode === 'gallery')
+                            🖼️ Carica Immagini Prodotto
+                        @else
+                            🎨 Carica Immagini Sfondo
+                        @endif
+                    </h3>
+                    <button wire:click="closeUploadModal" class="text-gray-400 hover:text-gray-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="p-6">
+                <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
                     <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
                         <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
+                    
                     <div class="mt-4">
                         <label class="cursor-pointer">
                             <span class="mt-2 block text-sm font-medium text-gray-900">
-                                Seleziona immagini da caricare
+                                @if($uploadMode === 'gallery')
+                                    Seleziona immagini del prodotto
+                                @else
+                                    Seleziona immagini per sfondi/marketing
+                                @endif
                             </span>
                             <input type="file" 
                                    wire:model="uploadedImages" 
                                    multiple 
                                    accept="image/*" 
-                                   class="block w-full mt-2 text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                                   class="block w-full mt-2 text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200">
                         </label>
-                        <p class="mt-1 text-xs text-gray-500">
-                            PNG, JPG, WebP fino a 10MB
-                        </p>
+                        
+                        <div class="mt-3 text-xs text-gray-500">
+                            @if($uploadMode === 'gallery')
+                                <p>• Immagini che mostrano il prodotto</p>
+                                <p>• La prima diventerà automaticamente PRIMARY</p>
+                            @else
+                                <p>• Immagini per sfondi, slideshow, header</p>
+                                <p>• Formato landscape consigliato</p>
+                                <p>• Assegna categorie dopo l'upload</p>
+                            @endif
+                            <p>• PNG, JPG, WebP fino a 10MB</p>
+                        </div>
                     </div>
                 </div>
                 
-                {{-- Upload Button - QUESTO ERA IL PEZZO MANCANTE --}}
-                @if($uploadedImages)
-                    <div class="text-center">
-                        <button wire:click="uploadImages" 
-                                wire:loading.attr="disabled"
-                                class="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed">
-                            <span wire:loading.remove wire:target="uploadImages">
-                                📤 Carica {{ count($uploadedImages) }} Immagini
-                            </span>
-                            <span wire:loading wire:target="uploadImages">
-                                ⏳ Caricamento in corso...
-                            </span>
-                        </button>
-                        <p class="mt-2 text-xs text-gray-600">
-                            Clicca per caricare le immagini selezionate
-                        </p>
+                {{-- Loading State --}}
+                <div wire:loading wire:target="uploadedImages" class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div class="flex items-center">
+                        <svg class="animate-spin h-4 w-4 text-blue-600 mr-2" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                        </svg>
+                        <span class="text-blue-800 text-sm">Caricamento in corso...</span>
                     </div>
-                @endif
-            </div>
-        @endif
-
-        {{-- Images Grid with Drag & Drop --}}
-        @if($product->images && $product->images->count() > 0)
-            
-            {{-- Drag & Drop Container --}}
-            <div id="sortable-images" class="grid grid-cols-2 md:grid-cols-3 gap-4">
-                @foreach($product->images->sortBy('sort_order') as $image)
-                    <div class="image-item border-2 rounded-lg overflow-hidden bg-white shadow hover:shadow-md transition-all {{ $image->is_primary ? 'border-yellow-400 ring-2 ring-yellow-200' : 'border-gray-200' }}"
-                         data-image-id="{{ $image->id }}">
-                        
-                        {{-- Drag Handle --}}
-                        <div class="drag-handle bg-gray-100 hover:bg-blue-100 p-2 cursor-move text-center border-b transition-colors">
-                            <div class="flex items-center justify-center space-x-2">
-                                <svg class="w-4 h-4 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
-                                    <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2zM3 16a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2z"></path>
-                                </svg>
-                                <span class="text-xs font-medium text-gray-600">TRASCINA</span>
-                                @if($image->is_primary)
-                                    <span class="text-xs bg-yellow-100 text-yellow-800 px-1 py-0.5 rounded font-bold">⭐</span>
-                                @endif
-                            </div>
-                            <div class="text-xs text-gray-500 mt-1">ID: {{ $image->id }}</div>
-                        </div>
-                        
-                        {{-- Image --}}
-                        <div class="relative aspect-square group">
-                            <img src="{{ $image->aws_url }}" 
-                                 alt="{{ $image->alt_text ?: $product->name }}"
-                                 class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200">
-                            
-                            {{-- Action Buttons --}}
-                            <div class="absolute top-2 right-2 flex space-x-1">
-                                @if(!$image->is_primary)
-                                    <button wire:click="setPrimaryImage({{ $image->id }})"
-                                            class="bg-yellow-500 text-white p-1 rounded text-xs hover:bg-yellow-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                                            title="Imposta come principale">
-                                        ⭐
-                                    </button>
-                                @endif
-                                <button wire:click="deleteImage({{ $image->id }})"
-                                        wire:confirm="Sei sicuro di voler eliminare questa immagine?"
-                                        class="bg-red-600 text-white p-1 rounded text-xs hover:bg-red-700 opacity-0 group-hover:opacity-100 transition-opacity"
-                                        title="Elimina">
-                                    🗑️
-                                </button>
-                            </div>
-                        </div>
-                        
-                        {{-- Alt Text --}}
-                        <div class="p-2">
-                            <input type="text" 
-                                   value="{{ $image->alt_text ?? '' }}"
-                                   placeholder="Alt text per SEO..."
-                                   class="w-full text-xs border rounded px-2 py-1 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                                   wire:change="updateImageAltText({{ $image->id }}, $event.target.value)">
-                        </div>
-                    </div>
-                @endforeach
+                </div>
             </div>
             
-        @else
-            {{-- Empty State --}}
-            <div class="text-center py-8">
-                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 48 48">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6 6l-1-1m1 1l4 4m-4-4v6m0-6h6m-6 0l-1-1"/>
-                </svg>
-                <p class="mt-2 text-sm text-gray-500 mb-4">Nessuna immagine caricata</p>
-                <button wire:click="$set('showImageUpload', true)" 
-                        class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
-                    📤 Carica prima immagine
+            <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end">
+                <button wire:click="closeUploadModal" 
+                        class="px-4 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                    Chiudi
                 </button>
             </div>
-        @endif
+        </div>
     </div>
-</div>
+@endif
 
 
-                {{-- Sidebar --}}
-                <div class="space-y-6">
+<button wire:click="debugImage(13)" class="bg-red-500 text-white p-2">
+    DEBUG IMAGE 13
+</button>
+
+                {{-- Sidebar (1/3 width) --}}
+                <div class="lg:col-span-4 space-y-6">
                     
                     {{-- Quick Stats --}}
                     <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
@@ -384,12 +687,26 @@
                         </div>
                         <div class="p-6 space-y-4">
                             <div class="flex justify-between items-center">
-                                <span class="text-sm text-gray-600">Immagini</span>
-                                <span class="font-semibold">{{ $product->images ? $product->images->count() : 0 }}</span>
+                                <span class="text-sm text-gray-600">Immagini Totali</span>
+                                <span class="font-semibold">{{ $product->image_count }}</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-600">⭐ Primary</span>
+                                <span class="font-semibold {{ $product->hasPrimaryImage() ? 'text-green-600' : 'text-red-600' }}">
+                                    {{ $product->hasPrimaryImage() ? '✓ Impostata' : '✗ Mancante' }}
+                                </span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-600">💄 Beauty</span>
+                                <span class="font-semibold text-purple-600">{{ $product->beauty_count }}</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-600">🖼️ Gallery</span>
+                                <span class="font-semibold text-blue-600">{{ $product->gallery_count }}</span>
                             </div>
                             <div class="flex justify-between items-center">
                                 <span class="text-sm text-gray-600">Tags</span>
-                                <span class="font-semibold">{{ $product->tags ? $product->tags->count() : 0 }}</span>
+                                <span class="font-semibold">{{ $product->tags()->count() }}</span>
                             </div>
                             <div class="flex justify-between items-center">
                                 <span class="text-sm text-gray-600">Ultima modifica</span>
@@ -427,13 +744,51 @@
                             @endif
                         </div>
                     </div>
+
+                    {{-- ✨ BEAUTY QUICK ACTIONS SIDEBAR ✨ --}}
+                    <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                        <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                            <h3 class="text-lg font-medium text-gray-900">💄 Beauty Actions</h3>
+                        </div>
+                        <div class="p-6 space-y-3">
+                            @if($product->image_count > 0)
+                                <button wire:click="setPrimaryToFirst" 
+                                        class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-yellow-50 rounded border border-yellow-200">
+                                    ⭐ Prima → Primary
+                                </button>
+                                <button wire:click="setBeautyToSecond" 
+                                        class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-purple-50 rounded border border-purple-200">
+                                    💄 Seconda → Beauty
+                                </button>
+                                @if($product->beauty_count > 0)
+                                    <button wire:click="clearAllBeauty" 
+                                            class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-red-50 rounded border border-red-200">
+                                        🗑️ Clear All Beauty
+                                    </button>
+                                @endif
+                                <button wire:click="generateAltTexts" 
+                                        class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded border border-blue-200">
+                                    🏷️ Genera Alt Text
+                                </button>
+                            @else
+                                <p class="text-sm text-gray-500 text-center py-4">
+                                    Carica delle immagini per vedere le azioni disponibili
+                                </p>
+                            @endif
+                            <button wire:click="optimizeAllImages" 
+                                    class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-green-50 rounded border border-green-200">
+                                🚀 Ottimizza Immagini
+                            </button>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>
     </div>
 
     {{-- Loading States --}}
-    <div wire:loading.flex wire:target="saveField,updateCategory,updateTags,toggleStatus,toggleFeatured" 
+    <div wire:loading.flex wire:target="saveField,updateCategory,updateTags,toggleStatus,toggleFeatured,markAsBeauty,markAsGallery,setPrimaryImage,clearPrimaryImage" 
          class="fixed inset-0 bg-gray-500 bg-opacity-50 z-50 items-center justify-center">
         <div class="bg-white p-4 rounded-lg shadow-lg">
             <div class="flex items-center space-x-3">
@@ -447,14 +802,55 @@
     </div>
 </div>
 
-{{-- Toast Notifications --}}
+{{-- JavaScript --}}
 <script>
-    window.addEventListener('field-saved', event => {
-        // Potresti aggiungere notifiche toast qui
-        console.log('Campo salvato:', event.detail.field);
+    document.addEventListener('livewire:init', () => {
+        Livewire.on('toast', (event) => {
+            const { message, type = 'success' } = event;
+            showToast(message, type);
+        });
+        
+        Livewire.on('field-saved', (event) => {
+            console.log('Campo salvato:', event.field);
+        });
+        
+        Livewire.on('status-changed', (event) => {
+            console.log('Status cambiato:', event.status);
+        });
+
+        // ✨ Beauty System Events ✨
+        Livewire.on('beauty-marked', (event) => {
+            console.log('Beauty image set:', event.imageId);
+            showToast('Immagine marcata come Beauty!', 'success');
+        });
+        
+        Livewire.on('beauty-cleared', (event) => {
+            console.log('Beauty cleared:', event.imageId);
+            showToast('Beauty rimossa!', 'info');
+        });
     });
-    
-    window.addEventListener('status-changed', event => {
-        console.log('Status cambiato:', event.detail.status);
-    });
+
+    function showToast(message, type = 'success') {
+        const colors = {
+            success: 'bg-green-600',
+            error: 'bg-red-600',
+            info: 'bg-blue-600',
+            warning: 'bg-yellow-600'
+        };
+        
+        const toast = document.createElement('div');
+        toast.className = `${colors[type]} text-white px-6 py-3 rounded-lg shadow-lg mb-2 transform transition-all duration-300 translate-x-full`;
+        toast.textContent = message;
+        
+        const container = document.getElementById('toast-container');
+        if (container) {
+            container.appendChild(toast);
+            
+            setTimeout(() => toast.classList.remove('translate-x-full'), 100);
+            setTimeout(() => {
+                toast.classList.add('translate-x-full');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+    }
 </script>

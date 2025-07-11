@@ -2,7 +2,6 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ImageController;
-use App\Http\Controllers\Admin\ImagesController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\AdminDashboardController;
 
@@ -14,6 +13,8 @@ Route::get('/img/{cleanName}', [ImageController::class, 'serve'])
     ->name('images.serve')
     ->where('cleanName', '[a-zA-Z0-9\-_]+');
 
+
+    
 // ====================================
 // PUBLIC ROUTES
 // ====================================
@@ -75,13 +76,13 @@ Route::middleware(['auth', \Spatie\Permission\Middleware\RoleMiddleware::class .
         Route::delete('/products/{product}', [ProductController::class, 'destroy'])->name('products.destroy');
     });
     
-    // 🖼️ IMAGES MANAGEMENT (require: manage-images permission)
-    Route::middleware(\Spatie\Permission\Middleware\PermissionMiddleware::class . ':manage-images')->group(function () {
-        Route::get('/images', [ImagesController::class, 'index'])->name('images.index');
-        Route::post('/images', [ImagesController::class, 'store'])->name('images.store');
-        Route::put('/images/{image}', [ImagesController::class, 'update'])->name('images.update');
-        Route::delete('/images/{image}', [ImagesController::class, 'destroy'])->name('images.destroy');
-    });
+    // // 🖼️ IMAGES MANAGEMENT (require: manage-images permission)
+    // Route::middleware(\Spatie\Permission\Middleware\PermissionMiddleware::class . ':manage-images')->group(function () {
+    //     Route::get('/images', [ImageController::class, 'index'])->name('images.index');
+    //     Route::post('/images', [ImageController::class, 'store'])->name('images.store');
+    //     Route::put('/images/{image}', [ImageController::class, 'update'])->name('images.update');
+    //     Route::delete('/images/{image}', [ImageController::class, 'destroy'])->name('images.destroy');
+    // });
     
     // 📁 CATEGORIES MANAGEMENT (require: manage-categories permission)
     Route::middleware(\Spatie\Permission\Middleware\PermissionMiddleware::class . ':manage-categories')->group(function () {
@@ -177,3 +178,5 @@ if (config('app.debug')) {
         })->name('debug.middleware');
     });
 }
+
+

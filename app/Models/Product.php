@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Facades\Activity;
 
 class Product extends Model
 {
@@ -44,7 +45,9 @@ class Product extends Model
         'meta_title',
         'meta_description',
         'meta_keywords',
-        'primary_image_id', // ✨ NUOVO per Advanced Image Gallery
+        'beauty_category',
+        'primary_image_id', // ✨ Primary image system
+        // REMOVED: 'beauty_image_id' - now using type system
     ];
 
     /**
@@ -134,16 +137,8 @@ class Product extends Model
     }
 
     // ===================================================================
-    // RELAZIONI IMMAGINI - ADVANCED IMAGE GALLERY ✨
+    // RELAZIONI IMMAGINI - BEAUTY SYSTEM ✨
     // ===================================================================
-
-    /**
-     * Tutte le immagini collegate al prodotto (polymorphic) - Advanced Gallery
-     */
-    public function galleryImages(): MorphMany
-    {
-        return $this->morphMany(Image::class, 'imageable')->ordered();
-    }
 
     /**
      * Relazione con l'immagine principale designata
@@ -154,24 +149,36 @@ class Product extends Model
     }
 
     /**
-     * Immagini collegate al prodotto (compatibilità con sistema esistente)
+     * Tutte le immagini collegate al prodotto (gallery + beauty)
      */
     public function images()
     {
         return $this->morphMany(Image::class, 'imageable')
-                    ->where('type', 'product')
-                    ->where('status', 'active');
+                    ->whereIn('type', ['gallery', 'beauty']) // ✨ Include both types
+                    ->where('status', 'active')
+                    ->ordered();
     }
 
     /**
-     * Immagine principale del prodotto (compatibilità con sistema esistente)
+     * Solo immagini gallery (normali)
      */
-    public function mainImage(): MorphOne
+    public function galleryImages()
     {
-        return $this->morphOne(Image::class, 'imageable')
-                    ->where('type', 'product')
+        return $this->morphMany(Image::class, 'imageable')
+                    ->where('type', 'gallery')
                     ->where('status', 'active')
-                    ->oldest();
+                    ->ordered();
+    }
+
+    /**
+     * Solo immagini beauty (speciali)
+     */
+    public function beautyImages()
+    {
+        return $this->morphMany(Image::class, 'imageable')
+                    ->where('type', 'beauty')
+                    ->where('status', 'active')
+                    ->ordered();
     }
 
     /**
@@ -251,19 +258,19 @@ class Product extends Model
     }
 
     /**
-     * Scope per prodotti con immagini ✨ NUOVO
+     * Scope per prodotti con immagini ✨ UPDATED
      */
     public function scopeWithImages($query)
     {
-        return $query->whereHas('galleryImages');
+        return $query->whereHas('images');
     }
 
     /**
-     * Scope per prodotti senza immagini ✨ NUOVO
+     * Scope per prodotti senza immagini ✨ UPDATED
      */
     public function scopeWithoutImages($query)
     {
-        return $query->whereDoesntHave('galleryImages');
+        return $query->whereDoesntHave('images');
     }
 
     /**
@@ -313,25 +320,23 @@ class Product extends Model
     }
 
     // ===================================================================
-    // ACCESSORS & MUTATORS - ADVANCED IMAGE GALLERY ✨
+    // ACCESSORS & MUTATORS - PRIMARY IMAGE SYSTEM ✨
     // ===================================================================
 
     /**
-     * Ottieni l'immagine principale (nuovo sistema) ✨
+     * Ottieni l'immagine principale
      */
     public function getPrimaryImageAttribute(): ?Image
     {
-        // Se abbiamo un primary_image_id, usa quella
         if ($this->primary_image_id && $this->primaryImage) {
             return $this->primaryImage;
         }
 
-        // Altrimenti prendi la prima immagine della gallery ordinata
-        return $this->galleryImages()->completed()->first();
+        return $this->galleryImages()->first();
     }
 
     /**
-     * Ottieni URL dell'immagine principale (nuovo sistema) ✨
+     * Ottieni URL dell'immagine principale
      */
     public function getPrimaryImageUrlAttribute(): ?string
     {
@@ -339,21 +344,11 @@ class Product extends Model
     }
 
     /**
-     * Ottieni alt text dell'immagine principale (nuovo sistema) ✨
+     * Ottieni alt text dell'immagine principale
      */
     public function getPrimaryImageAltAttribute(): ?string
     {
         return $this->primary_image?->alt_text ?? $this->name;
-    }
-
-    /**
-     * Ottieni tutte le immagini tranne quella principale (nuovo sistema) ✨
-     */
-    public function getSecondaryImagesAttribute()
-    {
-        return $this->galleryImages->reject(function ($image) {
-            return $this->isPrimaryImage($image);
-        });
     }
 
     /**
@@ -397,66 +392,6 @@ class Product extends Model
     }
 
     /**
-     * Ottieni l'immagine principale (compatibilità sistema esistente)
-     */
-    public function getMainImageAttribute(): ?string
-    {
-        // Prova prima con il nuovo sistema
-        if ($this->primary_image_url) {
-            return $this->primary_image_url;
-        }
-
-        // Fallback al sistema JSON esistente
-        if (!$this->images || !is_array($this->images)) {
-            return null;
-        }
-
-        return $this->images[0] ?? null;
-    }
-
-    /**
-     * Ottieni tutte le immagini tranne la principale (compatibilità sistema esistente)
-     */
-    public function getGalleryImagesAttribute(): array
-    {
-        // Prova prima con il nuovo sistema
-        if ($this->galleryImages->isNotEmpty()) {
-            return $this->secondary_images->pluck('url')->toArray();
-        }
-
-        // Fallback al sistema JSON esistente
-        if (!$this->images || !is_array($this->images)) {
-            return [];
-        }
-
-        return array_slice($this->images, 1);
-    }
-
-    /**
-     * Ottieni la URL dell'immagine principale (compatibilità sistema esistente)
-     */
-    public function getMainImageUrlAttribute(): ?string
-    {
-        // Prova prima con il nuovo sistema
-        if ($this->primary_image_url) {
-            return $this->primary_image_url;
-        }
-
-        // Fallback al sistema JSON esistente
-        if (!$this->main_image) {
-            return null;
-        }
-
-        // Se è già una URL completa, restituiscila
-        if (str_starts_with($this->main_image, 'http')) {
-            return $this->main_image;
-        }
-
-        // Usa il sistema di clean URLs per le immagini
-        return url('/img/' . $this->main_image);
-    }
-
-    /**
      * Ottieni il peso formattato
      */
     public function getFormattedWeightAttribute(): string
@@ -475,6 +410,323 @@ class Product extends Model
 
         $dims = $this->dimensions;
         return ($dims['length'] ?? 0) . ' x ' . ($dims['width'] ?? 0) . ' x ' . ($dims['height'] ?? 0) . ' cm';
+    }
+
+    // ===========================
+// BEAUTY CATEGORIES METHODS ✨
+// ===========================
+
+/**
+ * Ottieni beauty images per categoria specifica
+ */
+public function getBeautyByCategory($category)
+{
+    return $this->beautyImages()->where('beauty_category', $category);
+}
+
+/**
+ * Ottieni beauty images per sfondo principale
+ */
+public function getMainBeautyImages()
+{
+    return $this->getBeautyByCategory('main');
+}
+
+/**
+ * Ottieni beauty images per slideshow
+ */
+public function getSlideshowBeautyImages()
+{
+    return $this->getBeautyByCategory('slideshow');
+}
+
+/**
+ * Ottieni beauty images per header
+ */
+public function getHeaderBeautyImages()
+{
+    return $this->getBeautyByCategory('header');
+}
+
+/**
+ * Ottieni beauty images senza categoria
+ */
+public function getUncategorizedBeautyImages()
+{
+    return $this->beautyImages()->whereNull('beauty_category');
+}
+
+/**
+ * Verifica se ha almeno una beauty image nella categoria
+ */
+public function hasBeautyInCategory($category): bool
+{
+    return $this->getBeautyByCategory($category)->exists();
+}
+
+/**
+ * Verifica se ha sfondo principale
+ */
+public function hasMainBeautyImage(): bool
+{
+    return $this->hasBeautyInCategory('main');
+}
+
+/**
+ * Verifica se ha immagini slideshow
+ */
+public function hasSlideshowImages(): bool
+{
+    return $this->hasBeautyInCategory('slideshow');
+}
+
+/**
+ * Verifica se ha immagini header
+ */
+public function hasHeaderImages(): bool
+{
+    return $this->hasBeautyInCategory('header');
+}
+
+/**
+ * Ottieni la prima beauty image della categoria
+ */
+public function getFirstBeautyByCategory($category)
+{
+    return $this->getBeautyByCategory($category)->first();
+}
+
+/**
+ * Ottieni URL della prima beauty image della categoria
+ */
+public function getFirstBeautyUrlByCategory($category): ?string
+{
+    $image = $this->getFirstBeautyByCategory($category);
+    return $image ? $image->url : null;
+}
+
+/**
+ * Conta beauty images per categoria
+ */
+public function countBeautyByCategory($category): int
+{
+    return $this->getBeautyByCategory($category)->count();
+}
+
+/**
+ * Ottieni stats complete delle beauty categories
+ */
+public function getBeautyCategoryStats(): array
+{
+    return [
+        'main' => $this->countBeautyByCategory('main'),
+        'slideshow' => $this->countBeautyByCategory('slideshow'),
+        'header' => $this->countBeautyByCategory('header'),
+        'uncategorized' => $this->beautyImages()->whereNull('beauty_category')->count(),
+        'total' => $this->beauty_count
+    ];
+}
+
+/**
+ * Assegna beauty image a categoria
+ */
+public function assignBeautyToCategory(Image $image, string $category): bool
+{
+    if (!$this->ownsImage($image) || !$image->isBeauty()) {
+        throw new \InvalidArgumentException('Image must be a beauty image belonging to this product');
+    }
+    
+    $validCategories = ['main', 'slideshow', 'header'];
+    if (!in_array($category, $validCategories)) {
+        throw new \InvalidArgumentException('Invalid beauty category');
+    }
+    
+    $image->update(['beauty_category' => $category]);
+    
+    Activity::performedOn($this)
+        ->causedBy(auth()->user())
+        ->withProperties([
+            'image_id' => $image->id,
+            'category' => $category
+        ])
+        ->log("Assigned beauty image to {$category}");
+    
+    return true;
+}
+
+/**
+ * Rimuovi beauty image da categoria
+ */
+public function removeBeautyFromCategory(Image $image): bool
+{
+    if (!$this->ownsImage($image) || !$image->isBeauty()) {
+        throw new \InvalidArgumentException('Image must be a beauty image belonging to this product');
+    }
+    
+    $oldCategory = $image->beauty_category;
+    $image->update(['beauty_category' => null]);
+    
+    Activity::performedOn($this)
+        ->causedBy(auth()->user())
+        ->withProperties([
+            'image_id' => $image->id,
+            'old_category' => $oldCategory
+        ])
+        ->log("Removed beauty image from {$oldCategory}");
+    
+    return true;
+}
+
+    // ===================================================================
+    // BEAUTY SYSTEM METHODS ✨
+    // ===================================================================
+
+    /**
+     * Mark image as beauty
+     */
+    public function markAsBeauty(Image $image): bool
+    {
+        if (!$this->ownsImage($image)) {
+            throw new \InvalidArgumentException('Image does not belong to this product');
+        }
+        
+        $image->update(['type' => 'beauty']);
+        
+        Activity::performedOn($this)
+            ->causedBy(auth()->user())
+            ->withProperties(['image_id' => $image->id])
+            ->log('Marked image as beauty');
+        
+        return true;
+    }
+
+    /**
+     * Mark image as gallery (remove from beauty)
+     */
+    public function markAsGallery(Image $image): bool
+    {
+        if (!$this->ownsImage($image)) {
+            throw new \InvalidArgumentException('Image does not belong to this product');
+        }
+        
+        $image->update(['type' => 'gallery']);
+        
+        Activity::performedOn($this)
+            ->causedBy(auth()->user())
+            ->withProperties(['image_id' => $image->id])
+            ->log('Marked image as gallery');
+        
+        return true;
+    }
+
+    /**
+     * Simple beauty stats
+     */
+    public function getBeautyCountAttribute(): int
+    {
+        return $this->beautyImages()->count();
+    }
+
+    /**
+     * Simple gallery stats  
+     */
+    public function getGalleryCountAttribute(): int
+    {
+        return $this->galleryImages()->count();
+    }
+
+    /**
+     * Controlla se un'immagine appartiene a questo prodotto
+     */
+    public function ownsImage(Image $image): bool
+    {
+        return $image->imageable_type === static::class && 
+               $image->imageable_id === $this->id;
+    }
+
+    // ===================================================================
+    // PRIMARY IMAGE METHODS ✨
+    // ===================================================================
+
+    /**
+     * Imposta un'immagine come principale
+     */
+    public function setPrimaryImage(Image $image): void
+    {
+        if ($image->imageable_type !== static::class || $image->imageable_id !== $this->id) {
+            throw new \InvalidArgumentException('L\'immagine non appartiene a questo prodotto');
+        }
+
+        $this->update(['primary_image_id' => $image->id]);
+        
+        Activity::performedOn($this)
+            ->causedBy(auth()->user())
+            ->withProperties(['image_id' => $image->id])
+            ->log('Set primary image');
+    }
+
+    /**
+     * Rimuovi l'immagine principale
+     */
+    public function clearPrimaryImage(): void
+    {
+        $this->update(['primary_image_id' => null]);
+        
+        Activity::performedOn($this)
+            ->causedBy(auth()->user())
+            ->log('Cleared primary image');
+    }
+
+    /**
+     * Controlla se un'immagine è quella principale
+     */
+    public function isPrimaryImage(Image $image): bool
+    {
+        return $this->primary_image_id === $image->id;
+    }
+
+    /**
+     * Verifica se ha un'immagine principale
+     */
+    public function hasPrimaryImage(): bool
+    {
+        return !is_null($this->primary_image_id) && $this->primaryImage()->exists();
+    }
+
+    // ===================================================================
+    // HELPER METHODS ✨
+    // ===================================================================
+
+    /**
+     * Verifica se il prodotto è disponibile
+     */
+    public function isAvailable(): bool
+    {
+        return $this->is_active && !$this->trashed();
+    }
+
+    /**
+     * Verifica se ha varianti
+     */
+    public function hasVariants(): bool
+    {
+        return $this->variants()->exists();
+    }
+
+    /**
+     * Verifica se ha immagini
+     */
+    public function hasImages(): bool
+    {
+        return $this->images()->exists();
+    }
+
+    /**
+     * Ottieni il numero totale di immagini
+     */
+    public function getImageCountAttribute(): int
+    {
+        return $this->images()->count();
     }
 
     /**
@@ -548,380 +800,8 @@ class Product extends Model
         }
     }
 
-    // ===================================================================
-    // HELPER METHODS - ADVANCED IMAGE GALLERY ✨
-    // ===================================================================
-
     /**
-     * Imposta un'immagine come principale ✨
-     */
-    public function setPrimaryImage(Image $image): void
-    {
-        // Verifica che l'immagine appartenga a questo prodotto
-        if ($image->imageable_type !== static::class || $image->imageable_id !== $this->id) {
-            throw new \InvalidArgumentException('L\'immagine non appartiene a questo prodotto');
-        }
-
-        $this->update(['primary_image_id' => $image->id]);
-    }
-
-    /**
-     * Rimuovi l'immagine principale ✨
-     */
-    public function clearPrimaryImage(): void
-    {
-        $this->update(['primary_image_id' => null]);
-    }
-
-    /**
-     * Controlla se un'immagine è quella principale ✨
-     */
-    public function isPrimaryImage(Image $image): bool
-    {
-        return $this->primary_image_id === $image->id;
-    }
-
-    /**
-     * Aggiungi un'immagine al prodotto (nuovo sistema) ✨
-     */
-    public function addGalleryImage(Image $image): void
-    {
-        $this->galleryImages()->save($image);
-        
-        // Se è la prima immagine, impostala come principale
-        if ($this->galleryImages()->count() === 1 && !$this->primary_image_id) {
-            $this->setPrimaryImage($image);
-        }
-    }
-
-    /**
-     * Rimuovi un'immagine dalla gallery ✨
-     */
-    public function removeGalleryImage(Image $image): void
-    {
-        // Se è l'immagine principale, rimuovi il riferimento
-        if ($this->isPrimaryImage($image)) {
-            $this->clearPrimaryImage();
-            
-            // Imposta la prossima immagine come principale se disponibile
-            $nextImage = $this->galleryImages()->where('id', '!=', $image->id)->first();
-            if ($nextImage) {
-                $this->setPrimaryImage($nextImage);
-            }
-        }
-
-        $image->delete(); // Soft delete
-    }
-
-    /**
-     * Verifica se il prodotto è disponibile
-     */
-    public function isAvailable(): bool
-    {
-        return $this->is_active && !$this->trashed();
-    }
-
-    /**
-     * Verifica se ha varianti
-     */
-    public function hasVariants(): bool
-    {
-        return $this->variants()->exists();
-    }
-
-    /**
-     * Verifica se ha immagini (nuovo sistema con fallback) ✨
-     */
-    public function hasImages(): bool
-    {
-        return $this->galleryImages()->exists() || $this->images()->exists();
-    }
-
-    /**
-     * Ottieni il numero di immagini (nuovo sistema con fallback) ✨
-     */
-    public function getImageCountAttribute(): int
-    {
-        $galleryCount = $this->galleryImages()->count();
-        
-        if ($galleryCount > 0) {
-            return $galleryCount;
-        }
-
-        // Fallback al sistema JSON
-        return is_array($this->images) ? count($this->images) : 0;
-    }
-
-    /**
-     * Aggiungi un'immagine al prodotto (compatibilità sistema esistente)
-     */
-    public function addImage(Image $image): void
-    {
-        // Usa il nuovo sistema
-        $this->addGalleryImage($image);
-    }
-
-    /**
-     * Rimuovi un'immagine dal prodotto (compatibilità sistema esistente)
-     */
-    public function removeImage(Image $image): void
-    {
-        // Usa il nuovo sistema
-        $this->removeGalleryImage($image);
-    }
-
-    /**
-     * Verifica se ha accessori
-     */
-    public function hasAccessories(): bool
-    {
-        return $this->accessories()->exists();
-    }
-
-    /**
-     * Verifica se ha prodotti correlati
-     */
-    public function hasRelatedProducts(): bool
-    {
-        return $this->relatedProducts()->exists();
-    }
-
-    /**
-     * Ottieni tutti i colori disponibili
-     */
-    public function getAvailableColors(): array
-    {
-        return $this->colors ?? [];
-    }
-
-    /**
-     * Ottieni tutti i materiali disponibili
-     */
-    public function getAvailableMaterials(): array
-    {
-        return $this->materials ?? [];
-    }
-
-    /**
-     * Verifica se il prodotto è in una categoria specifica
-     */
-    public function isInCategory(int $categoryId): bool
-    {
-        return $this->category_id === $categoryId;
-    }
-
-    /**
-     * Ottieni il percorso della categoria (breadcrumb)
-     */
-    public function getCategoryPath(): array
-    {
-        $path = [];
-        $category = $this->category;
-        
-        while ($category) {
-            array_unshift($path, $category);
-            $category = $category->parent;
-        }
-        
-        return $path;
-    }
-
-    /**
-     * Ottieni il percorso della categoria come stringa
-     */
-    public function getCategoryPathString(): string
-    {
-        return implode(' > ', array_map(fn($cat) => $cat->name, $this->getCategoryPath()));
-    }
-
-    /**
-     * Verifica se il prodotto è in offerta
-     */
-    public function isOnSale(): bool
-    {
-        // Implementare logica per verificare se è in offerta
-        // Esempio: confrontare con prezzo originale o date di promozione
-        return false; // TODO: Implementare logica offerte
-    }
-
-    /**
-     * Ottieni il prezzo scontato per livello (se in offerta)
-     */
-    public function getSalePriceForLevel(int $level): ?float
-    {
-        if (!$this->isOnSale()) {
-            return null;
-        }
-        
-        // TODO: Implementare logica sconti/offerte
-        return null;
-    }
-
-    /**
-     * Ottieni lo sconto percentuale per livello
-     */
-    public function getDiscountPercentageForLevel(int $level): float
-    {
-        $originalPrice = $this->base_price;
-        $discountedPrice = $this->getPriceForLevel($level);
-        
-        if ($originalPrice <= 0) {
-            return 0;
-        }
-        
-        return (($originalPrice - $discountedPrice) / $originalPrice) * 100;
-    }
-
-    /**
-     * Verifica se il prodotto è nuovo (creato di recente)
-     */
-    public function isNew(int $days = 30): bool
-    {
-        return $this->created_at->diffInDays(now()) <= $days;
-    }
-
-    /**
-     * Verifica se il prodotto è popolare (basato su ordini/visualizzazioni)
-     */
-    public function isPopular(): bool
-    {
-        // TODO: Implementare logica basata su analytics/ordini
-        return false;
-    }
-
-    /**
-     * Ottieni prodotti simili (stessa categoria)
-     */
-    public function getSimilarProducts(int $limit = 5)
-    {
-        return self::where('category_id', $this->category_id)
-                   ->where('id', '!=', $this->id)
-                   ->active()
-                   ->limit($limit)
-                   ->get();
-    }
-
-    /**
-     * Ottieni prodotti correlati con tipo specifico
-     */
-    public function getRelatedProductsByType(string $type, int $limit = 5)
-    {
-        return $this->relatedProducts()
-                    ->wherePivot('relationship_type', $type)
-                    ->active()
-                    ->limit($limit)
-                    ->get();
-    }
-
-    /**
-     * Calcola il peso totale con accessori
-     */
-    public function getTotalWeight(): float
-    {
-        $totalWeight = $this->weight ?? 0;
-        
-        foreach ($this->accessories as $accessory) {
-            $quantity = $accessory->pivot->quantity ?? 1;
-            $totalWeight += ($accessory->weight ?? 0) * $quantity;
-        }
-        
-        return $totalWeight;
-    }
-
-    /**
-     * Ottieni le dimensioni totali con accessori
-     */
-    public function getTotalDimensions(): array
-    {
-        $baseDimensions = $this->dimensions ?? ['length' => 0, 'width' => 0, 'height' => 0];
-        
-        // TODO: Implementare logica per calcolare dimensioni totali con accessori
-        return $baseDimensions;
-    }
-
-    /**
-     * Verifica se il prodotto può essere spedito
-     */
-    public function canBeShipped(): bool
-    {
-        // TODO: Implementare logica basata su peso, dimensioni, zona geografica
-        return $this->is_active && !$this->trashed();
-    }
-
-    /**
-     * Ottieni il costo di spedizione stimato
-     */
-    public function getShippingCost(?string $region = null): float
-    {
-        // TODO: Implementare logica costi spedizione
-        return 0.0;
-    }
-
-    /**
-     * Ottieni il tempo di consegna stimato
-     */
-    public function getEstimatedDeliveryTime(?string $region = null): string
-    {
-        // TODO: Implementare logica tempi consegna
-        return '7-10 giorni lavorativi';
-    }
-
-    /**
-     * Verifica se il prodotto ha certificazioni
-     */
-    public function hasCertifications(): bool
-    {
-        return !empty($this->certifications);
-    }
-
-    /**
-     * Ottieni le certificazioni del prodotto
-     */
-    public function getCertifications(): array
-    {
-        return $this->certifications ?? [];
-    }
-
-    /**
-     * Verifica se il prodotto è eco-friendly
-     */
-    public function isEcoFriendly(): bool
-    {
-        $ecoTags = ['eco-friendly', 'sostenibile', 'green', 'riciclabile'];
-        
-        if ($this->tags) {
-            foreach ($this->tags as $tag) {
-                if (in_array(strtolower($tag->name), $ecoTags)) {
-                    return true;
-                }
-            }
-        }
-        
-        return false;
-    }
-
-    /**
-     * Ottieni il punteggio di sostenibilità
-     */
-    public function getSustainabilityScore(): int
-    {
-        $score = 0;
-        
-        if ($this->isEcoFriendly()) {
-            $score += 25;
-        }
-        
-        if ($this->hasCertifications()) {
-            $score += 25;
-        }
-        
-        // TODO: Aggiungere altri criteri di sostenibilità
-        
-        return min($score, 100);
-    }
-
-    /**
-     * Activity Log Configuration ✨ AGGIORNATO
+     * Activity Log Configuration
      */
     public function getActivitylogOptions(): LogOptions
     {
@@ -933,7 +813,7 @@ class Product extends Model
                 'is_active', 
                 'is_featured', 
                 'category_id',
-                'primary_image_id' // ✨ NUOVO
+                'primary_image_id'
             ])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
@@ -963,19 +843,24 @@ class Product extends Model
             }
         });
 
-        // Quando si elimina un prodotto, gestisci le immagini ✨ AGGIORNATO
+        // Quando si elimina un prodotto, gestisci le immagini
         static::deleting(function ($product) {
-            // Soft delete delle immagini della gallery
-            $product->galleryImages()->delete();
+            // Clear primary reference first
+            $product->update(['primary_image_id' => null]);
             
-            // Mantieni compatibilità con sistema esistente
+            // Then soft delete all images
             $product->images()->delete();
         });
 
-        // Quando si ripristina un prodotto, ripristina le immagini ✨ AGGIORNATO
+        // Quando si ripristina un prodotto, ripristina le immagini
         static::restoring(function ($product) {
-            $product->galleryImages()->withTrashed()->restore();
             $product->images()->withTrashed()->restore();
+            
+            // Try to set first image as primary
+            $firstImage = $product->images()->first();
+            if ($firstImage && !$product->primary_image_id) {
+                $product->update(['primary_image_id' => $firstImage->id]);
+            }
         });
     }
 }

@@ -139,32 +139,36 @@ class ImageService
     /**
      * Generate clean name for URL
      */
-    private function generateCleanName(UploadedFile $file, string $type): string
-    {
-        $name = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
-        $extension = $file->getClientOriginalExtension();
-        
-        // Clean the name
-        $cleanName = Str::slug($name);
-        
-        // Add type prefix if not general
-        if ($type !== 'general') {
-            $cleanName = $type . '-' . $cleanName;
-        }
-        
-        // Add timestamp to avoid conflicts
-        $cleanName .= '-' . time();
-        
-        // Ensure uniqueness
-        $counter = 1;
-        $originalCleanName = $cleanName;
-        while (Image::where('clean_name', $cleanName)->exists()) {
-            $cleanName = $originalCleanName . '-' . $counter;
-            $counter++;
-        }
-        
-        return $cleanName;
+    // Nel tuo ImageService.php
+private function generateCleanName($originalFilename, $customName = null): string
+{
+    if ($customName) {
+        $name = $customName;
+    } else {
+        // Rimuovi estensione dal filename originale
+        $name = pathinfo($originalFilename, PATHINFO_FILENAME);
     }
+    
+    // FIX: PULISCI il nome per rispettare la regex [a-zA-Z0-9\-_]+
+    $cleanName = $name;
+    
+    // Sostituisci spazi e caratteri speciali con trattini
+    $cleanName = preg_replace('/[^a-zA-Z0-9\-_]/', '-', $cleanName);
+    
+    // Rimuovi trattini multipli
+    $cleanName = preg_replace('/-+/', '-', $cleanName);
+    
+    // Rimuovi trattini all'inizio e fine
+    $cleanName = trim($cleanName, '-');
+    
+    // Converti in lowercase
+    $cleanName = strtolower($cleanName);
+    
+    // Aggiungi timestamp per unicità (solo numeri)
+    $timestamp = time();
+    
+    return $cleanName . '-' . $timestamp;
+}
 
     /**
      * Generate AWS key (path in S3)
