@@ -264,4 +264,28 @@ Shared: view-products, view-images, search-products, contact-support
 **📧 Admin access**: admin@manzoniarredourbano.it / password
 **🖼️ Test image**: http://localhost:8000/img/test-manzoni-121659
 
+
+codici per export testuali
+
+# Export tutto (default, NON minificato)
+php artisan manzoni:export-code
+
+# Export tutto minificato
+php artisan manzoni:export-code --minify
+
+# Export solo controllers
+php artisan manzoni:export-code --controllers --output=controllers.txt
+
+# Export solo models e views
+php artisan manzoni:export-code --models --views --output=models-views.txt
+
+# Export solo quello che abbiamo fatto oggi (controllers + views)
+php artisan manzoni:export-code --controllers --views --routes --output=admin-products-work.txt
+
+# Export minificato per condivisione rapida
+php artisan manzoni:export-code --controllers --models --minify --output=quick-share.txt
+
+# Export config e services per setup
+php artisan manzoni:export-code --config --services --output=setup-files.txt
+
 *Questo documento viene aggiornato costantemente durante lo sviluppo del progetto*

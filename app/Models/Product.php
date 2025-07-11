@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
 
@@ -99,7 +100,7 @@ class Product extends Model
     /**
      * Varianti del prodotto (fisso/removibile)
      */
-    public function variants(): HasMany
+    public function variants()
     {
         return $this->hasMany(ProductVariant::class);
     }
@@ -134,13 +135,12 @@ class Product extends Model
     /**
      * Immagini collegate al prodotto (polymorphic)
      */
-    public function images(): MorphMany
-    {
-        return $this->morphMany(Image::class, 'imageable')
-                    ->where('type', 'product')
-                    ->where('status', 'active')
-                    ->orderBy('created_at');
-    }
+    public function images()
+{
+    return $this->morphMany(Image::class, 'imageable')
+                ->where('type', 'product')
+                ->where('status', 'active');
+}
 
     /**
      * Immagine principale del prodotto

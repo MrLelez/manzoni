@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ImageController;
 use App\Http\Controllers\Admin\ImagesController;
+use App\Http\Controllers\Admin\ProductController;
 
 // ====================================
 // IMAGE SERVING ROUTES (DEVONO ESSERE TRA LE PRIME!)
@@ -62,6 +63,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
         ->name('admin.images.update');
     Route::delete('/images/{image}', [ImagesController::class, 'destroy'])
         ->name('admin.images.destroy');
+    Route::resource('products', ProductController::class);
 });
 
 // Rivenditore routes - Ecommerce con livelli 1-5
