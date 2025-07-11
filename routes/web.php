@@ -4,31 +4,37 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ImageController;
 use App\Http\Controllers\Admin\ImagesController;
 use App\Http\Controllers\Admin\ProductController;
+use App\Http\Controllers\Admin\AdminDashboardController;
 
 // ====================================
-// IMAGE SERVING ROUTES (DEVONO ESSERE TRA LE PRIME!)
+// IMAGE SERVING ROUTES
 // ====================================
 
-// Serve image by clean name: /img/cestino-roma-blue.jpg
 Route::get('/img/{cleanName}', [ImageController::class, 'serve'])
     ->name('images.serve')
     ->where('cleanName', '[a-zA-Z0-9\-_]+');
 
-// Home page pubblica
+// ====================================
+// PUBLIC ROUTES
+// ====================================
+
 Route::get('/', function () {
     return view('welcome');
-});
+})->name('home');
 
-// Dashboard principale con redirect automatico basato su ruolo
+// ====================================
+// AUTHENTICATED ROUTES
+// ====================================
+
 Route::middleware([
     'auth:sanctum',
     config('jetstream.auth_session'),
     'verified',
 ])->group(function () {
+    
     Route::get('/dashboard', function () {
         $user = auth()->user();
         
-        // Redirect automatico basato su ruolo
         if ($user->hasRole('admin')) {
             return redirect()->route('admin.dashboard');
         }
@@ -41,96 +47,133 @@ Route::middleware([
             return redirect()->route('agente.dashboard');
         }
         
-        // Default dashboard per utenti senza ruoli specifici
         return view('dashboard');
     })->name('dashboard');
 });
 
-// Admin routes - Controllo totale sistema
-Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
-    Route::get('/dashboard', [App\Http\Controllers\Admin\AdminDashboardController::class, 'index'])->name('dashboard');
-    Route::get('/users', [App\Http\Controllers\Admin\AdminDashboardController::class, 'users'])->name('users');
-    Route::get('/users/create', [App\Http\Controllers\Admin\AdminDashboardController::class, 'createUser'])->name('users.create');
-    Route::post('/users', [App\Http\Controllers\Admin\AdminDashboardController::class, 'storeUser'])->name('users.store');
-    Route::patch('/users/{user}/toggle', [App\Http\Controllers\Admin\AdminDashboardController::class, 'toggleUserStatus'])->name('users.toggle');
-    Route::patch('/users/{user}/level', [App\Http\Controllers\Admin\AdminDashboardController::class, 'updateUserLevel'])->name('users.level');
-    // Images management
-    Route::get('/images', [ImagesController::class, 'index'])
-        ->name('admin.images.index');
-    Route::post('/images', [ImagesController::class, 'store'])
-        ->name('admin.images.store');
-    Route::put('/images/{image}', [ImagesController::class, 'update'])
-        ->name('admin.images.update');
-    Route::delete('/images/{image}', [ImagesController::class, 'destroy'])
-        ->name('admin.images.destroy');
-    Route::resource('products', ProductController::class);
+// ====================================
+// ADMIN ROUTES - USANDO DIRETTAMENTE CLASSE SPATIE
+// ====================================
+
+Route::middleware(['auth', \Spatie\Permission\Middleware\RoleMiddleware::class . ':admin'])->prefix('admin')->name('admin.')->group(function () {
+    
+    Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
+    
+    // 👥 USERS MANAGEMENT (solo admin)
+    Route::get('/users', [AdminDashboardController::class, 'users'])->name('users');
+    Route::get('/users/create', [AdminDashboardController::class, 'createUser'])->name('users.create');
+    Route::post('/users', [AdminDashboardController::class, 'storeUser'])->name('users.store');
+    Route::patch('/users/{user}/toggle', [AdminDashboardController::class, 'toggleUserStatus'])->name('users.toggle');
+    Route::patch('/users/{user}/level', [AdminDashboardController::class, 'updateUserLevel'])->name('users.level');
+    
+    // 🛍️ PRODUCTS MANAGEMENT (require: manage-products permission)
+    Route::middleware(\Spatie\Permission\Middleware\PermissionMiddleware::class . ':manage-products')->group(function () {
+        Route::get('/products', [ProductController::class, 'index'])->name('products.index');
+        Route::get('/products/create', [ProductController::class, 'create'])->name('products.create');
+        Route::post('/products', [ProductController::class, 'store'])->name('products.store');
+        Route::get('/products/{product}', App\Livewire\Admin\ProductEditor::class)->name('products.show');
+        Route::delete('/products/{product}', [ProductController::class, 'destroy'])->name('products.destroy');
+    });
+    
+    // 🖼️ IMAGES MANAGEMENT (require: manage-images permission)
+    Route::middleware(\Spatie\Permission\Middleware\PermissionMiddleware::class . ':manage-images')->group(function () {
+        Route::get('/images', [ImagesController::class, 'index'])->name('images.index');
+        Route::post('/images', [ImagesController::class, 'store'])->name('images.store');
+        Route::put('/images/{image}', [ImagesController::class, 'update'])->name('images.update');
+        Route::delete('/images/{image}', [ImagesController::class, 'destroy'])->name('images.destroy');
+    });
+    
+    // 📁 CATEGORIES MANAGEMENT (require: manage-categories permission)
+    Route::middleware(\Spatie\Permission\Middleware\PermissionMiddleware::class . ':manage-categories')->group(function () {
+        Route::get('/categories', function () {
+            return view('admin.coming-soon', [
+                'feature' => 'Categories Management',
+                'description' => 'Gestione completa delle categorie prodotti con controlli sicurezza.'
+            ]);
+        })->name('categories.index');
+    });
+    
+    // 🏷️ TAGS MANAGEMENT (require: manage-tags permission)
+    Route::middleware(\Spatie\Permission\Middleware\PermissionMiddleware::class . ':manage-tags')->group(function () {
+        Route::get('/tags', function () {
+            return view('admin.coming-soon', [
+                'feature' => 'Tags Management', 
+                'description' => 'Gestione completa dei tag con bulk operations e controlli dipendenze.'
+            ]);
+        })->name('tags.index');
+    });
 });
 
-// Rivenditore routes - Ecommerce con livelli 1-5
-Route::middleware(['auth', 'role:rivenditore'])->prefix('rivenditore')->name('rivenditore.')->group(function () {
+// ====================================
+// RIVENDITORE ROUTES
+// ====================================
+
+Route::middleware(['auth', \Spatie\Permission\Middleware\RoleMiddleware::class . ':rivenditore'])->prefix('rivenditore')->name('rivenditore.')->group(function () {
+    
     Route::get('/dashboard', function () {
         $user = auth()->user();
         return view('rivenditore.dashboard', compact('user'));
     })->name('dashboard');
     
-    Route::get('/catalogo', function () {
-        return view('rivenditore.catalogo');
-    })->name('catalogo');
+    // Catalogo con prezzi personalizzati (require: view-pricing)
+    Route::middleware(\Spatie\Permission\Middleware\PermissionMiddleware::class . ':view-pricing')->group(function () {
+        Route::get('/catalogo', function () {
+            return view('rivenditore.catalogo');
+        })->name('catalogo');
+    });
     
-    Route::get('/ordini', function () {
-        return view('rivenditore.ordini');
-    })->name('ordini');
+    // Gestione ordini (require: place-orders)
+    Route::middleware(\Spatie\Permission\Middleware\PermissionMiddleware::class . ':place-orders')->group(function () {
+        Route::get('/ordini', function () {
+            return view('rivenditore.ordini');
+        })->name('ordini');
+    });
 });
 
-// Agente routes - Catalogo mobile
-Route::middleware(['auth', 'role:agente'])->prefix('agente')->name('agente.')->group(function () {
+// ====================================
+// AGENTE ROUTES
+// ====================================
+
+Route::middleware(['auth', \Spatie\Permission\Middleware\RoleMiddleware::class . ':agente'])->prefix('agente')->name('agente.')->group(function () {
+    
     Route::get('/dashboard', function () {
         $user = auth()->user();
         return view('agente.dashboard', compact('user'));
     })->name('dashboard');
     
-    Route::get('/catalogo', function () {
-        return view('agente.catalogo');
-    })->name('catalogo');
+    // Catalogo mobile (require: view-catalog)
+    Route::middleware(\Spatie\Permission\Middleware\PermissionMiddleware::class . ':view-catalog')->group(function () {
+        Route::get('/catalogo', function () {
+            return view('agente.catalogo');
+        })->name('catalogo');
+    });
     
-    Route::get('/offline', function () {
-        return view('agente.offline');
-    })->name('offline');
+    // Funzionalità offline (require: sync-offline-data)
+    Route::middleware(\Spatie\Permission\Middleware\PermissionMiddleware::class . ':sync-offline-data')->group(function () {
+        Route::get('/offline', function () {
+            return view('agente.offline');
+        })->name('offline');
+    });
 });
 
-// Debug routes (rimuovi in produzione)
-Route::middleware('auth')->group(function () {
-    Route::get('/debug-auth', function () {
-        $user = auth()->user();
-        return [
-            'logged_in' => auth()->check(),
-            'user_email' => $user ? $user->email : 'None',
-            'user_roles' => $user ? $user->roles->pluck('name') : 'None',
-            'is_admin' => $user ? $user->hasRole('admin') : false,
-            'available_routes' => [
-                'dashboard' => route('dashboard'),
-                'admin_dashboard' => $user && $user->hasRole('admin') ? route('admin.dashboard') : 'Not accessible',
-                'rivenditore_dashboard' => $user && $user->hasRole('rivenditore') ? route('rivenditore.dashboard') : 'Not accessible',
-                'agente_dashboard' => $user && $user->hasRole('agente') ? route('agente.dashboard') : 'Not accessible',
-            ]
-        ];
+// ====================================
+// DEBUG ROUTES
+// ====================================
+
+if (config('app.debug')) {
+    Route::middleware('auth')->group(function () {
+        Route::get('/debug-middleware', function () {
+            $user = auth()->user();
+            return [
+                'user' => $user?->email,
+                'roles' => $user?->roles->pluck('name'),
+                'permissions' => $user?->getAllPermissions()->pluck('name'),
+                'spatie_classes' => [
+                    'RoleMiddleware' => class_exists('Spatie\Permission\Middleware\RoleMiddleware'),
+                    'PermissionMiddleware' => class_exists('Spatie\Permission\Middleware\PermissionMiddleware'),
+                ],
+                'middleware_test' => 'Routes using direct Spatie classes',
+            ];
+        })->name('debug.middleware');
     });
-    
-    Route::get('/test-redirect', function () {
-        $user = auth()->user();
-        
-        if ($user->hasRole('admin')) {
-            return "ADMIN DETECTED - Redirect to: " . route('admin.dashboard');
-        }
-        
-        if ($user->hasRole('rivenditore')) {
-            return "RIVENDITORE DETECTED - Redirect to: " . route('rivenditore.dashboard');
-        }
-        
-        if ($user->hasRole('agente')) {
-            return "AGENTE DETECTED - Redirect to: " . route('agente.dashboard');
-        }
-        
-        return "User role: " . ($user->roles->first()->name ?? 'No role');
-    });
-});
+}

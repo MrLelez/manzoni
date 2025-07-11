@@ -288,4 +288,67 @@ php artisan manzoni:export-code --controllers --models --minify --output=quick-s
 # Export config e services per setup
 php artisan manzoni:export-code --config --services --output=setup-files.txt
 
+
+
+# Aggiornamento da aggiungere al README del progetto
+
+## 🚀 Prossimi Passi PRIORITARI
+
+### 1. **📝 Livewire Product Editor - COMPLETATO** ✅
+- ✅ Editing inline di tutti i campi
+- ✅ Toggle status e featured
+- ✅ Creazione rapida tags e categorie
+- ✅ Modifica inline nomi tags
+- ✅ Upload immagini con AWS S3
+- ✅ Activity logging automatico
+
+### 2. **🏷️ Pagine Gestione Tags e Categorie** (TODO SICUREZZA)
+- [ ] **`/admin/categories`** - Pagina gestione categorie
+  - [ ] Lista paginata con ricerca
+  - [ ] Conta prodotti associati per categoria
+  - [ ] Edit inline nome e descrizione
+  - [ ] Elimina con conferma (solo se non usate)
+  - [ ] Riordina per sort_order
+  - [ ] Toggle attivo/inattivo
+- [ ] **`/admin/tags`** - Pagina gestione tags  
+  - [ ] Lista paginata con ricerca
+  - [ ] Conta prodotti associati per tag
+  - [ ] Edit inline nome
+  - [ ] Elimina con conferma (solo se non usati)
+  - [ ] Bulk operations (elimina multipli)
+  - [ ] Colori per i tag
+- [ ] **Controllers**: `CategoryController` e `TagController`
+- [ ] **Security**: Controllo dipendenze prima eliminazione
+- [ ] **Routes**: Resource routes con nomi admin
+
+### 3. **🖼️ Integrazione Immagini Prodotti Avanzata**
+- [ ] Gallery prodotti con riordino drag & drop
+- [ ] Immagine principale designata
+- [ ] Crop/resize automatico varianti
+- [ ] Alt text e SEO per immagini
+- [ ] Bulk upload multiple immagini
+
+### 4. **📊 Dashboard Rivenditore**
+- [ ] Interface ecommerce completa con gallery prodotti
+- [ ] Visualizzazione prezzi personalizzati per livello
+- [ ] Carrello con anteprime immagini
+- [ ] Storico ordini e fatturazione
+
+### 5. **📱 Dashboard Agente** 
+- [ ] Catalogo mobile con immagini ottimizzate
+- [ ] Funzionalità offline con sync
+- [ ] Tools presentazione con gallery
+- [ ] PWA setup
+
+### 6. **🎨 Vetrina Pubblica**
+- [ ] Homepage boutique con hero images
+- [ ] Pagine prodotto con gallery immersive
+- [ ] SEO optimization per immagini
+- [ ] Performance mobile ottimizzate
+
+---
+
+**📅 Ultimo aggiornamento**: 11 Luglio 2025 - ORE 15:45
+**🎯 Focus attuale**: Livewire Product Editor con gestione sicura tags/categorie
+
 *Questo documento viene aggiornato costantemente durante lo sviluppo del progetto*

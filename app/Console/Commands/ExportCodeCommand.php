@@ -110,7 +110,7 @@ class ExportCodeCommand extends Command
             if (File::exists(base_path($file))) {
                 $content[] = "### FILE: {$file}";
                 $content[] = "```php";
-                $content[] = File::get(base_path($file)); // CONTENUTO COMPLETO
+                $content[] = File::get(base_path($file));
                 $content[] = "```";
                 $content[] = "";
                 $this->line("  ✅ {$file}");
@@ -147,12 +147,6 @@ class ExportCodeCommand extends Command
                     $content[] = File::get(base_path($file));
                 }
                 $content[] = "```";
-                $content[] = "";
-                $this->line("  ✅ {$file}");
-            }
-        }
-                $content[] = "### FILE: {$file}";
-                $content[] = $this->minifyPhp(File::get(base_path($file)));
                 $content[] = "";
                 $this->line("  ✅ {$file}");
             }
