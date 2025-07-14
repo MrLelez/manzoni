@@ -39,7 +39,7 @@
     </div>
 
     <!-- Quick Stats -->
-    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
         <div class="bg-white rounded-lg shadow p-4 text-center">
             <div class="text-2xl font-bold text-blue-600">{{ $this->stats['total_images'] }}</div>
             <div class="text-xs text-gray-600">Totali</div>
@@ -56,10 +56,10 @@
             <div class="text-2xl font-bold text-orange-600">{{ $this->stats['orphan_images'] }}</div>
             <div class="text-xs text-gray-600">Orfane</div>
         </div>
-        {{-- <div class="bg-white rounded-lg shadow p-4 text-center">
+        <div class="bg-white rounded-lg shadow p-4 text-center">
             <div class="text-2xl font-bold text-red-600">{{ $this->stats['unoptimized_images'] }}</div>
             <div class="text-xs text-gray-600">Non Opt</div>
-        </div> --}}
+        </div>
         <div class="bg-white rounded-lg shadow p-4 text-center">
             <div class="text-2xl font-bold text-indigo-600">{{ $this->stats['total_size_mb'] }}MB</div>
             <div class="text-xs text-gray-600">Storage</div>
@@ -110,10 +110,15 @@
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Utilizzo</label>
                 <select wire:model.live="usage" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
-                    <option value="">Tutte</option>
-                    <option value="used">In Uso</option>
-                    <option value="unused">Non Usate</option>
-                </select>
+        <option value="">Tutte</option>
+        <option value="used">🟢 Attivamente Usate ({{ $this->stats['total_images'] - $this->stats['unused_images'] }})</option>
+        <option value="unused">🔴 Non Usate/Orfane ({{ $this->stats['unused_images'] }})</option>
+    </select>
+    @if($usage === 'unused')
+        <p class="text-xs text-red-600 mt-1">
+            Include: senza associazione, mai usate, non accedute da 30+ giorni
+        </p>
+    @endif
             </div>
 
             <!-- Optimized -->

@@ -24,6 +24,7 @@ class ImageGallery extends Component
     public $optimized = '';
     public $sortBy = 'created_at';
     public $sortDir = 'desc';
+    public $orphanFilter = '';
 
     // Bulk operations
     public $bulkMode = false;
@@ -62,6 +63,7 @@ class ImageGallery extends Component
         'status' => ['except' => ''],
         'beautyCategory' => ['except' => ''],
         'usage' => ['except' => ''],
+        'orphanFilter' => ['except' => ''],
         'optimized' => ['except' => ''],
         'sortBy' => ['except' => 'created_at'],
         'sortDir' => ['except' => 'desc'],
@@ -80,55 +82,114 @@ class ImageGallery extends Component
     }
 
     #[Computed]
-    public function images()
-    {
-        $query = Image::with(['imageable', 'uploader']);
+public function images()
+{
+    $query = Image::with(['imageable', 'uploader']);
 
-        // Apply filters
-        if (!empty($this->search)) {
-            $query->search($this->search);
-        }
-
-        if (!empty($this->type)) {
-            $query->where('type', $this->type);
-        }
-
-        if (!empty($this->status)) {
-            $query->where('status', $this->status);
-        }
-
-        if (!empty($this->beautyCategory)) {
-            $query->where('beauty_category', $this->beautyCategory);
-        }
-
-        if (!empty($this->usage)) {
-            if ($this->usage === 'used') {
-                $query->where('usage_count', '>', 0);
-            } elseif ($this->usage === 'unused') {
-                $query->where('usage_count', 0);
-            }
-        }
-
-        if ($this->optimized !== '') {
-            $query->where('is_optimized', (bool) $this->optimized);
-        }
-
-        return $query->orderBy($this->sortBy, $this->sortDir)->paginate(24);
+    // Apply filters
+    if (!empty($this->search)) {
+        $query->search($this->search);
     }
+
+    if (!empty($this->type)) {
+        $query->where('type', $this->type);
+    }
+
+    if (!empty($this->status)) {
+        $query->where('status', $this->status);
+    }
+
+    if (!empty($this->beautyCategory)) {
+        $query->where('beauty_category', $this->beautyCategory);
+    }
+
+    // 🎯 FILTRO USAGE SEMPLIFICATO
+    if (!empty($this->usage)) {
+        if ($this->usage === 'used') {
+            // Immagini USATE = che hanno un'associazione (imageable_id non null)
+            $query->whereNotNull('imageable_id');
+        } elseif ($this->usage === 'unused') {
+            // Immagini NON USATE = che NON hanno un'associazione (imageable_id è null)
+            $query->whereNull('imageable_id');
+        }
+    }
+
+    if ($this->optimized !== '') {
+        $query->where('is_optimized', (bool) $this->optimized);
+    }
+
+    return $query->orderBy($this->sortBy, $this->sortDir)->paginate(24);
+}
+
 
     #[Computed]
-    public function stats()
-    {
-        return [
-            'total_images' => Image::count(),
-            'gallery_images' => Image::where('type', 'gallery')->count(),
-            'beauty_images' => Image::where('type', 'beauty')->count(),
-            'orphan_images' => Image::whereNull('imageable_id')->count(),
-            'unoptimized_images' => Image::where('is_optimized', false)->count(),
-            'total_size_mb' => round(Image::sum('file_size') / 1024 / 1024, 2),
-            'average_size_kb' => round(Image::avg('file_size') / 1024, 1)
-        ];
-    }
+public function stats()
+{
+    // Conteggi base
+    $totalImages = Image::count();
+    $orphanImages = Image::whereNull('imageable_id')->count();
+    
+    // Immagini per tipo
+    $galleryImages = Image::where('type', 'gallery')->count();
+    $beautyImages = Image::where('type', 'beauty')->count();
+    
+    // Immagini non ottimizzate
+    $unoptimizedImages = Image::where('is_optimized', false)->count();
+    
+    // Calcolo storage
+    $totalSizeBytes = Image::sum('file_size') ?? 0;
+    $totalSizeMb = round($totalSizeBytes / 1024 / 1024, 2);
+    $averageSizeKb = $totalImages > 0 ? round(($totalSizeBytes / $totalImages) / 1024, 1) : 0;
+    
+    // 🎯 CALCOLO UNUSED IMAGES CORRETTO
+    $unusedImages = Image::where(function($q) {
+        $q->whereNull('imageable_id') // Orfane (senza associazione)
+          ->orWhere(function($subQ) {
+              // Associate ma mai usate
+              $subQ->whereNotNull('imageable_id')
+                   ->where('usage_count', '<=', 0);
+          })
+          ->orWhere(function($subQ) {
+              // Non accedute da 30+ giorni o mai accedute
+              $subQ->where('last_accessed_at', '<', now()->subDays(30))
+                   ->orWhereNull('last_accessed_at');
+          })
+          ->orWhereIn('status', ['failed', 'processing']) // Status problematici
+          ->orWhere('type', 'temp'); // Temporanee
+    })->distinct()->count();
+    
+    // Immagini veramente usate (per calcolo)
+    $usedImages = $totalImages - $unusedImages;
+    
+    return [
+        // Conteggi principali
+        'total_images' => $totalImages,
+        'gallery_images' => $galleryImages,
+        'beauty_images' => $beautyImages,
+        
+        // Stato utilizzo
+        'orphan_images' => $orphanImages,
+        'unused_images' => $unusedImages,
+        'used_images' => $usedImages,
+        
+        // Ottimizzazione
+        'unoptimized_images' => $unoptimizedImages,
+        
+        // Storage
+        'total_size_mb' => $totalSizeMb,
+        'average_size_kb' => $averageSizeKb,
+        
+        // 🔍 Stats aggiuntive utili
+        'usage_percentage' => $totalImages > 0 ? round(($usedImages / $totalImages) * 100, 1) : 0,
+        'optimization_percentage' => $totalImages > 0 ? round((($totalImages - $unoptimizedImages) / $totalImages) * 100, 1) : 0,
+        
+        // 🛠️ Debug stats (rimuovi in produzione se non servono)
+        'debug_orphan_count' => $orphanImages,
+        'debug_never_used' => Image::where('usage_count', '<=', 0)->count(),
+        'debug_old_access' => Image::where('last_accessed_at', '<', now()->subDays(30))->count(),
+        'debug_never_accessed' => Image::whereNull('last_accessed_at')->count(),
+    ];
+}
 
     #[Computed]
     public function products()
@@ -195,10 +256,67 @@ class ImageGallery extends Component
     {
         $this->reset([
             'search', 'type', 'status', 'beautyCategory', 
-            'usage', 'optimized', 'sortBy', 'sortDir'
+            'usage', 'optimized', 'sortBy', 'sortDir',
+            'usage', 'optimized', 'orphanFilter'
         ]);
         $this->sortBy = 'created_at';
         $this->sortDir = 'desc';
+        $this->resetPage();
+    }
+
+    private function applyOrphanFilter($query)
+    {
+        switch ($this->orphanFilter) {
+            case 'no_association':
+                // Immagini senza associazione polymorphic
+                $query->whereNull('imageable_id');
+                break;
+                
+            case 'unused':
+                // Immagini mai usate (usage_count = 0)
+                $query->where('usage_count', 0);
+                break;
+                
+            case 'old_unused':
+                // Immagini non usate da 30+ giorni
+                $query->where(function($q) {
+                    $q->where('last_accessed_at', '<', now()->subDays(30))
+                      ->orWhereNull('last_accessed_at');
+                });
+                break;
+                
+            case 'temp_failed':
+                // Immagini temp o failed
+                $query->where(function($q) {
+                    $q->where('type', 'temp')
+                      ->orWhere('status', 'failed');
+                });
+                break;
+                
+            case 'all_orphans':
+                // Tutte le possibili orfane
+                $query->where(function($q) {
+                    $q->whereNull('imageable_id')
+                      ->orWhere('usage_count', 0)
+                      ->orWhere('last_accessed_at', '<', now()->subDays(30))
+                      ->orWhereNull('last_accessed_at')
+                      ->orWhere('type', 'temp')
+                      ->orWhere('status', 'failed');
+                });
+                break;
+        }
+    }
+
+    // ✨ NUOVO METODO per reset orphan filter
+    public function updatedOrphanFilter()
+    {
+        $this->resetPage();
+    }
+
+    // ✨ NUOVO METODO per click su statistica orfane
+    public function showOrphans($type = 'all_orphans')
+    {
+        $this->orphanFilter = $type;
         $this->resetPage();
     }
 
