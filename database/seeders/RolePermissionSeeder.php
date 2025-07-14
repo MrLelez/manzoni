@@ -34,6 +34,9 @@ class RolePermissionSeeder extends Seeder
             'view-analytics',
             'manage-settings',
             'export-data',
+            'can-edit-images',
+            'can-view-images', 
+            'can-optimize-images',
             
             // 🛍️ RIVENDITORE PERMISSIONS
             'view-pricing',

@@ -75,6 +75,9 @@ Route::middleware(['auth', \Spatie\Permission\Middleware\RoleMiddleware::class .
         Route::get('/products/{product}', App\Livewire\Admin\ProductEditor::class)->name('products.show');
         Route::delete('/products/{product}', [ProductController::class, 'destroy'])->name('products.destroy');
     });
+
+
+    
     
     // // 🖼️ IMAGES MANAGEMENT (require: manage-images permission)
     // Route::middleware(\Spatie\Permission\Middleware\PermissionMiddleware::class . ':manage-images')->group(function () {
@@ -103,6 +106,37 @@ Route::middleware(['auth', \Spatie\Permission\Middleware\RoleMiddleware::class .
             ]);
         })->name('tags.index');
     });
+});
+
+// ====================================
+// ROUTES GESTIONE IMMAGINI (ADMIN)
+// ====================================
+
+Route::middleware(['auth', 'permission:can-edit-images'])->prefix('admin')->name('admin.')->group(function () {
+    
+    // Gallery principale
+    Route::get('/images', [\App\Http\Controllers\ImageController::class, 'adminIndex'])->name('images.index');
+    
+    // Dettagli immagine
+    Route::get('/images/{image}', [\App\Http\Controllers\ImageController::class, 'adminShow'])->name('images.show');
+    
+    // Upload nuove immagini (admin bulk)
+    Route::post('/images', [\App\Http\Controllers\ImageController::class, 'adminStore'])->name('images.store');
+    
+    // Aggiorna dettagli immagine
+    Route::patch('/images/{image}', [\App\Http\Controllers\ImageController::class, 'updateImage'])->name('images.update');
+    
+    // Sostituisci immagine
+    Route::post('/images/{image}/replace', [\App\Http\Controllers\ImageController::class, 'replace'])->name('images.replace');
+    
+    // Associazione/Disassociazione prodotti
+    Route::post('/images/{image}/associate', [\App\Http\Controllers\ImageController::class, 'associateToProduct'])->name('images.associate');
+    Route::delete('/images/{image}/dissociate', [\App\Http\Controllers\ImageController::class, 'dissociateFromProduct'])->name('images.dissociate');
+    
+    // Operazioni bulk
+    Route::post('/images/bulk-delete', [\App\Http\Controllers\ImageController::class, 'bulkDelete'])->name('images.bulk-delete');
+    Route::post('/images/optimize', [\App\Http\Controllers\ImageController::class, 'optimize'])->name('images.optimize');
+    
 });
 
 // ====================================

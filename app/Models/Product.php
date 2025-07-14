@@ -323,6 +323,7 @@ class Product extends Model
     // ACCESSORS & MUTATORS - PRIMARY IMAGE SYSTEM ✨
     // ===================================================================
 
+
     /**
      * Ottieni l'immagine principale
      */
@@ -863,4 +864,6 @@ public function removeBeautyFromCategory(Image $image): bool
             }
         });
     }
+
+    
 }

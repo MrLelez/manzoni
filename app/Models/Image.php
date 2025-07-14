@@ -11,6 +11,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
 
+// ✅ AGGIUNGI QUESTO IMPORT
+use App\Models\Product;
+
 class Image extends Model
 {
     use HasFactory, SoftDeletes, LogsActivity;
@@ -388,5 +391,20 @@ class Image extends Model
             Product::where('beauty_image_id', $image->id)
                    ->update(['beauty_image_id' => null]);
         });
+    }
+
+
+    /**
+     * Check if this image is primary (usando il campo is_primary se esiste)
+     */
+    public function getIsPrimaryAttribute(): bool
+    {
+        // Se hai il campo is_primary nella tabella, usalo
+        if (isset($this->attributes['is_primary'])) {
+            return (bool) $this->attributes['is_primary'];
+        }
+        
+        // Altrimenti controlla se è primary per qualche prodotto
+        return $this->isPrimaryForProduct();
     }
 }

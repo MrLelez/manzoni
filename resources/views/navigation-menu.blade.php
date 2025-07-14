@@ -15,6 +15,73 @@
                     <x-nav-link href="{{ route('dashboard') }}" :active="request()->routeIs('dashboard')">
                         {{ __('Dashboard') }}
                     </x-nav-link>
+                    
+                    {{-- Admin Links --}}
+                    @can('can-edit-images')
+                        <x-nav-link href="{{ route('admin.images.index') }}" :active="request()->routeIs('admin.images.*')" class="inline-flex items-center">
+                            <div class="w-4 h-4 bg-purple-500 rounded-full flex items-center justify-center mr-2">
+                                <svg class="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"></path>
+                                </svg>
+                            </div>
+                            {{ __('Immagini') }}
+                        </x-nav-link>
+                    @endcan
+                    
+                    @can('manage-products')
+                        <x-nav-link href="{{ route('admin.products.index') }}" :active="request()->routeIs('admin.products.*')" class="inline-flex items-center">
+                            <div class="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center mr-2">
+                                <svg class="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"></path>
+                                </svg>
+                            </div>
+                            {{ __('Prodotti') }}
+                        </x-nav-link>
+                    @endcan
+                    
+                    @can('manage-users')
+                        <x-nav-link href="{{ route('admin.users') }}" :active="request()->routeIs('admin.users*')" class="inline-flex items-center">
+                            <div class="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center mr-2">
+                                <svg class="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"></path>
+                                </svg>
+                            </div>
+                            {{ __('Utenti') }}
+                        </x-nav-link>
+                    @endcan
+                    
+                    {{-- Rivenditore Links --}}
+                    @hasrole('rivenditore')
+                        <x-nav-link href="{{ route('rivenditore.catalogo') }}" :active="request()->routeIs('rivenditore.catalogo')" class="inline-flex items-center">
+                            <div class="w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center mr-2">
+                                <svg class="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 2L3 7v11a2 2 0 002 2h4a2 2 0 002-2v-4a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 002 2h4a2 2 0 002-2V7l-7-5z" clip-rule="evenodd"></path>
+                                </svg>
+                            </div>
+                            {{ __('Catalogo') }}
+                        </x-nav-link>
+                        <x-nav-link href="{{ route('rivenditore.ordini') }}" :active="request()->routeIs('rivenditore.ordini')" class="inline-flex items-center">
+                            <div class="w-4 h-4 bg-orange-500 rounded-full flex items-center justify-center mr-2">
+                                <svg class="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"></path>
+                                    <path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"></path>
+                                </svg>
+                            </div>
+                            {{ __('Ordini') }}
+                        </x-nav-link>
+                    @endhasrole
+                    
+                    {{-- Agente Links --}}
+                    @hasrole('agente')
+                        <x-nav-link href="{{ route('agente.catalogo') }}" :active="request()->routeIs('agente.catalogo')" class="inline-flex items-center">
+                            <div class="w-4 h-4 bg-indigo-500 rounded-full flex items-center justify-center mr-2">
+                                <svg class="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M3 5a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2h-2.22l.123.489.804.804A1 1 0 0113 18H7a1 1 0 01-.707-1.707l.804-.804L7.22 15H5a2 2 0 01-2-2V5zm5.771 7H5V5h10v7H8.771z" clip-rule="evenodd"></path>
+                                </svg>
+                            </div>
+                            {{ __('Catalogo Mobile') }}
+                        </x-nav-link>
+                    @endhasrole
                 </div>
             </div>
 
@@ -142,6 +209,73 @@
             <x-responsive-nav-link href="{{ route('dashboard') }}" :active="request()->routeIs('dashboard')">
                 {{ __('Dashboard') }}
             </x-responsive-nav-link>
+            
+            {{-- Mobile Admin Links --}}
+            @can('can-edit-images')
+                <x-responsive-nav-link href="{{ route('admin.images.index') }}" :active="request()->routeIs('admin.images.*')" class="flex items-center">
+                    <div class="w-4 h-4 bg-purple-500 rounded-full flex items-center justify-center mr-3">
+                        <svg class="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"></path>
+                        </svg>
+                    </div>
+                    {{ __('Immagini') }}
+                </x-responsive-nav-link>
+            @endcan
+            
+            @can('manage-products')
+                <x-responsive-nav-link href="{{ route('admin.products.index') }}" :active="request()->routeIs('admin.products.*')" class="flex items-center">
+                    <div class="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center mr-3">
+                        <svg class="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"></path>
+                        </svg>
+                    </div>
+                    {{ __('Prodotti') }}
+                </x-responsive-nav-link>
+            @endcan
+            
+            @can('manage-users')
+                <x-responsive-nav-link href="{{ route('admin.users') }}" :active="request()->routeIs('admin.users*')" class="flex items-center">
+                    <div class="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center mr-3">
+                        <svg class="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"></path>
+                        </svg>
+                    </div>
+                    {{ __('Utenti') }}
+                </x-responsive-nav-link>
+            @endcan
+            
+            {{-- Mobile Rivenditore Links --}}
+            @hasrole('rivenditore')
+                <x-responsive-nav-link href="{{ route('rivenditore.catalogo') }}" :active="request()->routeIs('rivenditore.catalogo')" class="flex items-center">
+                    <div class="w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center mr-3">
+                        <svg class="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 2L3 7v11a2 2 0 002 2h4a2 2 0 002-2v-4a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 002 2h4a2 2 0 002-2V7l-7-5z" clip-rule="evenodd"></path>
+                        </svg>
+                    </div>
+                    {{ __('Catalogo') }}
+                </x-responsive-nav-link>
+                <x-responsive-nav-link href="{{ route('rivenditore.ordini') }}" :active="request()->routeIs('rivenditore.ordini')" class="flex items-center">
+                    <div class="w-4 h-4 bg-orange-500 rounded-full flex items-center justify-center mr-3">
+                        <svg class="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"></path>
+                            <path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"></path>
+                        </svg>
+                    </div>
+                    {{ __('Ordini') }}
+                </x-responsive-nav-link>
+            @endhasrole
+            
+            {{-- Mobile Agente Links --}}
+            @hasrole('agente')
+                <x-responsive-nav-link href="{{ route('agente.catalogo') }}" :active="request()->routeIs('agente.catalogo')" class="flex items-center">
+                    <div class="w-4 h-4 bg-indigo-500 rounded-full flex items-center justify-center mr-3">
+                        <svg class="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M3 5a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2h-2.22l.123.489.804.804A1 1 0 0113 18H7a1 1 0 01-.707-1.707l.804-.804L7.22 15H5a2 2 0 01-2-2V5zm5.771 7H5V5h10v7H8.771z" clip-rule="evenodd"></path>
+                        </svg>
+                    </div>
+                    {{ __('Catalogo Mobile') }}
+                </x-responsive-nav-link>
+            @endhasrole
         </div>
 
         <!-- Responsive Settings Options -->

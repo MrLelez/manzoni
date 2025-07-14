@@ -10,30 +10,53 @@ use Spatie\Permission\Models\Permission;
 
 class AdminDashboardController extends Controller
 {
+    /**
+     * Dashboard principale admin con contenuti recenti
+     */
     public function index()
     {
+        // Statistiche principali
         $stats = [
             'total_users' => User::count(),
-            'admins' => User::role('admin')->count(),
+            'total_products' => \App\Models\Product::count(),
+            'total_images' => \App\Models\Image::count(),
+            'active_users' => User::where('is_active', true)->count(),
             'rivenditori' => User::role('rivenditore')->count(),
             'agenti' => User::role('agente')->count(),
-            'active_users' => User::where('is_active', true)->count(),
-            'inactive_users' => User::where('is_active', false)->count(),
         ];
 
+        // Ultimo prodotto inserito - SENZA primaryImage nel with()
+        $latestProduct = \App\Models\Product::with(['category'])
+                                          ->withCount('images')
+                                          ->latest()
+                                          ->first();
+
+        // Ultima immagine caricata
+        $latestImage = \App\Models\Image::with('imageable')
+                                      ->latest()
+                                      ->first();
+
+        // Rivenditori per livello
+        $rivenditoriByLevel = [];
+        for ($level = 1; $level <= 5; $level++) {
+            $rivenditoriByLevel[$level] = User::role('rivenditore')
+                                            ->where('level', $level)
+                                            ->count();
+        }
+
+        // Utenti recenti (per eventuale sezione aggiuntiva)
         $recentUsers = User::with('roles')
-            ->latest()
-            ->take(5)
-            ->get();
+                          ->latest()
+                          ->limit(5)
+                          ->get();
 
-        $rivenditoriByLevel = User::role('rivenditore')
-            ->selectRaw('level, count(*) as count')
-            ->groupBy('level')
-            ->orderBy('level')
-            ->get()
-            ->pluck('count', 'level');
-
-        return view('admin.dashboard', compact('stats', 'recentUsers', 'rivenditoriByLevel'));
+        return view('admin.dashboard', compact(
+            'stats', 
+            'latestProduct', 
+            'latestImage', 
+            'rivenditoriByLevel', 
+            'recentUsers'
+        ));
     }
 
     public function users()
@@ -188,4 +211,9 @@ class AdminDashboardController extends Controller
 
         return back()->with('success', "Livello aggiornato a {$validated['level']}!");
     }
+
+    /**
+     * Dashboard principale admin con contenuti recenti
+     */
+    
 }
