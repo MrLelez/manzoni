@@ -278,24 +278,33 @@ class ImageGallery extends Component
 
     public function openUploadModal()
     {
+        // Pulisci eventuali errori di validazione precedenti
+        $this->resetValidation();
+        
+        // Pulisci i messaggi flash precedenti
+        session()->forget(['success', 'error']);
+        
         $this->showUploadModal = true;
-    }
-
-    public function closeUploadModal()
-    {
-        $this->showUploadModal = false;
-        $this->resetUploadForm();
-    }
-
-    private function resetUploadForm()
-    {
-        $this->reset([
-            'uploadImages', 'uploadType', 'uploadProductId', 'uploadBeautyCategory'
+        
+        \Log::info('Upload modal opened', [
+            'user_id' => auth()->id(),
+            'timestamp' => now()->toDateTimeString()
         ]);
     }
 
-    public function uploadImages()
-    {
+    public function checkValidationBeforeSubmit()
+{
+    \Log::info('Pre-validation check', [
+        'uploadImages_count' => count($this->uploadImages ?? []),
+        'uploadImages_empty' => empty($this->uploadImages),
+        'uploadType' => $this->uploadType,
+        'uploadProductId' => $this->uploadProductId,
+        'uploadBeautyCategory' => $this->uploadBeautyCategory,
+        'user_id' => auth()->id()
+    ]);
+
+    // Test validazione manualmente
+    try {
         $this->validate([
             'uploadImages' => 'required|array|min:1',
             'uploadImages.*' => 'image|mimes:jpeg,png,webp|max:10240',
@@ -303,46 +312,229 @@ class ImageGallery extends Component
             'uploadProductId' => 'nullable|exists:products,id',
             'uploadBeautyCategory' => 'nullable|in:main,slideshow,header',
         ]);
+        
+        \Log::info('Validation PASSED');
+        session()->flash('success', 'Validazione OK - puoi procedere con upload');
+        
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        \Log::error('Validation FAILED', [
+            'errors' => $e->errors(),
+            'messages' => $e->getMessage()
+        ]);
+        
+        session()->flash('error', 'Errori validazione: ' . json_encode($e->errors()));
+    }
+}
 
-        $imageService = app(ImageService::class);
+    public function closeUploadModal()
+    {
+        $this->showUploadModal = false;
+    
+        // Pulisci errori di validazione
+        $this->resetValidation();
+        
+        // Reset form
+        $this->resetUploadForm();
+        
+        \Log::info('Upload modal closed');
+    }
+
+    private function resetUploadForm()
+{
+    $this->reset([
+        'uploadImages', 
+        'uploadType', 
+        'uploadProductId', 
+        'uploadBeautyCategory'
+    ]);
+    
+    // Re-imposta i valori di default
+    $this->uploadType = 'gallery';
+    $this->uploadProductId = null;
+    $this->uploadBeautyCategory = null;
+}
+
+
+
+   public function processUpload()
+{
+    
+    try {
+
+        // Step 1: Validazione
+        
+        $this->validate([
+            'uploadImages' => 'required|array|min:1',
+            'uploadImages.*' => 'image|mimes:jpeg,png,webp|max:10240',
+            'uploadType' => 'required|in:gallery,beauty,product,category,content',
+            'uploadProductId' => 'nullable|exists:products,id',
+            'uploadBeautyCategory' => 'nullable|in:main,slideshow,header',
+        ], [
+            'uploadImages.required' => 'Seleziona almeno un\'immagine',
+            'uploadImages.*.image' => 'Il file deve essere un\'immagine valida',
+            'uploadImages.*.mimes' => 'Formato non supportato (solo JPEG, PNG, WebP)',
+            'uploadImages.*.max' => 'L\'immagine è troppo grande (max 10MB)'
+        ]);
+
+        // \Log::info('Validation PASSED');
+
+        // Step 2: Preparazione variabili
         $uploadedCount = 0;
         $errors = [];
+        $product = null;
 
-        foreach ($this->uploadImages as $file) {
+        // Step 3: Trova prodotto se specificato
+        if ($this->uploadProductId) {
+            // \Log::info('Looking for product...', ['product_id' => $this->uploadProductId]);
+            
+            $product = \App\Models\Product::find($this->uploadProductId);
+            if (!$product) {
+                throw new \Exception("Prodotto con ID {$this->uploadProductId} non trovato");
+            }
+            
+            // \Log::info('Product found', [
+            //     'product_id' => $product->id,
+            //     'product_name' => $product->name
+            // ]);
+        }
+
+        // Step 4: Istanzia ImageService
+        // \Log::info('Creating ImageService...');
+        $imageService = app(\App\Services\ImageService::class);
+        // \Log::info('ImageService created successfully');
+
+        // Step 5: Loop attraverso i file
+        // \Log::info('Starting file processing loop', [
+        //     'total_files' => count($this->uploadImages)
+        // ]);
+
+        foreach ($this->uploadImages as $index => $file) {
+            // \Log::info("Processing file {$index}", [
+            //     'original_name' => $file->getClientOriginalName(),
+            //     'size' => $file->getSize(),
+            //     'mime_type' => $file->getMimeType(),
+            //     'is_valid' => $file->isValid(),
+            //     'error_code' => $file->getError()
+            // ]);
+
             try {
-                $imageable = $this->uploadProductId ? Product::find($this->uploadProductId) : null;
+                // Call ImageService
+                // \Log::info('Calling imageService->uploadImage...');
                 
-                // Usa il metodo uploadImage del tuo ImageService esistente
                 $image = $imageService->uploadImage(
-                    $file,  // UploadedFile
-                    $imageable,
-                    $this->uploadType,
-                    auth()->id()
+                    $file,              // UploadedFile
+                    $product,           // Related model (può essere null)  
+                    $this->uploadType,  // Tipo immagine
+                    auth()->id()        // User ID
                 );
 
-                // Set beauty category if specified
+                // \Log::info('ImageService upload SUCCESS', [
+                //     'image_id' => $image->id,
+                //     'clean_name' => $image->clean_name,
+                //     'aws_key' => $image->aws_key,
+                //     'aws_url' => $image->aws_url
+                // ]);
+
+                // Imposta beauty category se specificata
                 if ($this->uploadBeautyCategory && $this->uploadType === 'beauty') {
+                    // \Log::info('Setting beauty category...');
                     $image->update(['beauty_category' => $this->uploadBeautyCategory]);
+                    // \Log::info('Beauty category set', [
+                    //     'image_id' => $image->id,
+                    //     'category' => $this->uploadBeautyCategory
+                    // ]);
                 }
 
                 $uploadedCount++;
+                // \Log::info("File {$index} processed successfully", [
+                //     'uploaded_count' => $uploadedCount
+                // ]);
 
             } catch (\Exception $e) {
-                $errors[] = $e->getMessage();
+                \Log::error("File {$index} processing FAILED", [
+                    'file' => $file->getClientOriginalName(),
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
+                
+                $errors[] = "Errore {$file->getClientOriginalName()}: " . $e->getMessage();
             }
         }
 
+        // \Log::info('File processing loop completed', [
+        //     'uploaded_count' => $uploadedCount,
+        //     'errors_count' => count($errors)
+        // ]);
+
+        // Step 6: Feedback risultati
         if ($uploadedCount > 0) {
-            session()->flash('success', "Caricate {$uploadedCount} immagini con successo!");
+            $message = "Caricate {$uploadedCount} immagini con successo!";
+            session()->flash('success', $message);
+            // \Log::info('Upload SUCCESS', [
+            //     'message' => $message,
+            //     'uploaded_count' => $uploadedCount
+            // ]);
         }
 
         if (!empty($errors)) {
-            session()->flash('error', 'Alcuni errori: ' . implode(', ', $errors));
+            $errorMessage = 'Alcuni errori: ' . implode('; ', array_slice($errors, 0, 3));
+            session()->flash('error', $errorMessage);
+            \Log::warning('Upload with errors', [
+                'errors_count' => count($errors),
+                'first_errors' => array_slice($errors, 0, 3)
+            ]);
         }
 
-        $this->closeUploadModal();
-        $this->dispatch('images-uploaded');
+        // Se nessun file è stato caricato
+        if ($uploadedCount === 0 && empty($errors)) {
+            $message = 'Nessun file è stato caricato. Verifica i file selezionati.';
+            session()->flash('error', $message);
+            \Log::warning('No files uploaded', [
+                'message' => $message,
+                'uploadImages_count' => count($this->uploadImages ?? [])
+            ]);
+        }
+
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        \Log::error('Validation ERROR', [
+            'errors' => $e->errors(),
+            'messages' => $e->getMessage()
+        ]);
+        
+        // Re-throw validation exception per mostrare errori nel form
+        throw $e;
+        
+    } catch (\Exception $e) {
+        // \Log::error('Upload process COMPLETELY FAILED', [
+        //     'error' => $e->getMessage(),
+        //     'trace' => $e->getTraceAsString(),
+        //     'user_id' => auth()->id(),
+        //     'file' => $e->getFile(),
+        //     'line' => $e->getLine()
+        // ]);
+        
+        session()->flash('error', 'Errore durante upload: ' . $e->getMessage());
+        
+    } finally {
+        // \Log::info('=== UPLOAD CLEANUP START ===');
+        
+        // Sempre chiudi modal e refresh (anche in caso di errore)
+        try {
+            $this->closeUploadModal();
+            // \Log::info('Modal closed successfully');
+            
+            $this->dispatch('images-uploaded');
+            // \Log::info('Event dispatched successfully');
+            
+        } catch (\Exception $e) {
+            \Log::error('Cleanup FAILED', [
+                'error' => $e->getMessage()
+            ]);
+        }
+        
+        // \Log::info('=== UPLOAD IMAGES END ===');
     }
+}
 
     // =====================================
     // BULK OPERATIONS

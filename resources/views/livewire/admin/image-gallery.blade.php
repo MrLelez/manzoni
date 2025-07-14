@@ -20,6 +20,7 @@
                 </svg>
                 <span>Carica</span>
             </button>
+            
             <button wire:click="toggleBulkMode" 
                     class="@if($bulkMode) bg-red-600 hover:bg-red-700 @else bg-gray-600 hover:bg-gray-700 @endif text-white px-4 py-2 rounded-lg transition-colors inline-flex items-center space-x-2">
                 @if($bulkMode) 
@@ -38,7 +39,7 @@
     </div>
 
     <!-- Quick Stats -->
-    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
         <div class="bg-white rounded-lg shadow p-4 text-center">
             <div class="text-2xl font-bold text-blue-600">{{ $this->stats['total_images'] }}</div>
             <div class="text-xs text-gray-600">Totali</div>
@@ -55,10 +56,10 @@
             <div class="text-2xl font-bold text-orange-600">{{ $this->stats['orphan_images'] }}</div>
             <div class="text-xs text-gray-600">Orfane</div>
         </div>
-        <div class="bg-white rounded-lg shadow p-4 text-center">
+        {{-- <div class="bg-white rounded-lg shadow p-4 text-center">
             <div class="text-2xl font-bold text-red-600">{{ $this->stats['unoptimized_images'] }}</div>
             <div class="text-xs text-gray-600">Non Opt</div>
-        </div>
+        </div> --}}
         <div class="bg-white rounded-lg shadow p-4 text-center">
             <div class="text-2xl font-bold text-indigo-600">{{ $this->stats['total_size_mb'] }}MB</div>
             <div class="text-xs text-gray-600">Storage</div>
@@ -350,81 +351,141 @@
 
     <!-- Upload Modal -->
     @if($showUploadModal)
-    <div class="fixed inset-0 bg-gray-600 bg-opacity-50 z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-                <h3 class="text-lg font-medium text-gray-900">Carica Immagini</h3>
-                <button wire:click="closeUploadModal" class="text-gray-400 hover:text-gray-600">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
+<div class="fixed inset-0 bg-gray-600 bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+            <h3 class="text-lg font-medium text-gray-900">Carica Immagini</h3>
+            <button wire:click="closeUploadModal" 
+                    wire:loading.attr="disabled" 
+                    wire:target="uploadImages"
+                    class="text-gray-400 hover:text-gray-600">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+        
+        <!-- 🔥 DEBUG INFO -->
+        <div class="px-6 py-2 bg-yellow-50 border-b text-xs">
+            <strong>Debug:</strong> 
+            Files: {{ count($uploadImages ?? []) }} | 
+            Type: {{ $uploadType }} | 
+            Product: {{ $uploadProductId }} | 
+            User: {{ auth()->id() }}
+            
+            <!-- Loading indicator nella debug area -->
+            <span wire:loading wire:target="uploadImages" class="text-blue-600 font-bold">
+                🔄 UPLOADING...
+            </span>
+        </div>
+        
+        <!-- 🔥 RIMUOVI FORM e USA DIV con wire:click -->
+        <div class="p-6 space-y-4">
+            <!-- File Upload -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Seleziona Immagini</label>
+                <input type="file" 
+                       wire:model="uploadImages" 
+                       multiple 
+                       accept="image/*"
+                       wire:loading.attr="disabled"
+                       wire:target="uploadImages"
+                       class="w-full border border-gray-300 rounded-md p-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                <p class="text-xs text-gray-500 mt-1">JPEG, PNG, WebP - Max 10MB per file</p>
+                @error('uploadImages.*') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                @error('uploadImages') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+            </div>
+
+            <!-- Type -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Tipo</label>
+                <select wire:model.live="uploadType" 
+                        wire:loading.attr="disabled"
+                        wire:target="uploadImages"
+                        class="w-full rounded-md border-gray-300 text-sm disabled:opacity-50">
+                    <option value="gallery">Gallery</option>
+                    <option value="beauty">Beauty</option>
+                    <option value="product">Product</option>
+                    <option value="category">Category</option>
+                    <option value="content">Content</option>
+                </select>
+                @error('uploadType') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+            </div>
+
+            <!-- Product Association -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Associa a Prodotto</label>
+                <select wire:model.live="uploadProductId" 
+                        wire:loading.attr="disabled"
+                        wire:target="uploadImages"
+                        class="w-full rounded-md border-gray-300 text-sm disabled:opacity-50">
+                    <option value="">Nessuna associazione</option>
+                    @foreach($this->products as $product)
+                        <option value="{{ $product->id }}">{{ $product->name }} ({{ $product->sku }})</option>
+                    @endforeach
+                </select>
+                @error('uploadProductId') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+            </div>
+
+            <!-- Beauty Category -->
+            @if($uploadType === 'beauty')
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Beauty Category</label>
+                <select wire:model="uploadBeautyCategory" 
+                        wire:loading.attr="disabled"
+                        wire:target="uploadImages"
+                        class="w-full rounded-md border-gray-300 text-sm disabled:opacity-50">
+                    <option value="">Nessuna categoria</option>
+                    <option value="main">Main</option>
+                    <option value="slideshow">Slideshow</option>
+                    <option value="header">Header</option>
+                </select>
+                @error('uploadBeautyCategory') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+            </div>
+            @endif
+
+            <!-- 🔧 TEST VALIDAZIONE (temporaneo) -->
+            <div class="border-t pt-4">
+                <button type="button"
+                        wire:click="checkValidationBeforeSubmit" 
+                        class="w-full px-4 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 text-sm mb-3">
+                    🔧 Test Validazione
                 </button>
             </div>
-            
-            <form wire:submit="uploadImages" class="p-6 space-y-4">
-                <!-- File Upload -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Seleziona Immagini</label>
-                    <input type="file" 
-                           wire:model="uploadImages" 
-                           multiple 
-                           accept="image/*" 
-                           class="w-full border border-gray-300 rounded-md p-2 text-sm">
-                    <p class="text-xs text-gray-500 mt-1">JPEG, PNG, WebP - Max 10MB per file</p>
-                    @error('uploadImages.*') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
-                </div>
 
-                <!-- Type -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Tipo</label>
-                    <select wire:model.live="uploadType" class="w-full rounded-md border-gray-300 text-sm">
-                        <option value="gallery">Gallery</option>
-                        <option value="beauty">Beauty</option>
-                        <option value="product">Product</option>
-                        <option value="category">Category</option>
-                        <option value="content">Content</option>
-                    </select>
-                </div>
+            <!-- 🔥 BOTTONI CON WIRE:CLICK (NON wire:submit) -->
+            <div class="flex justify-end space-x-3">
+                <button type="button" 
+                        wire:click="closeUploadModal"
+                        wire:loading.attr="disabled"
+                        wire:target="uploadImages" 
+                        class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                    Annulla
+                </button>
+                
+                <!-- 🔥 UPLOAD BUTTON con wire:click DIRETTO -->
 
-                <!-- Product Association -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Associa a Prodotto</label>
-                    <select wire:model.live="uploadProductId" class="w-full rounded-md border-gray-300 text-sm">
-                        <option value="">Nessuna associazione</option>
-                        @foreach($this->products as $product)
-                            <option value="{{ $product->id }}">{{ $product->name }} ({{ $product->sku }})</option>
-                        @endforeach
-                    </select>
-                </div>
-
-                <!-- Beauty Category -->
-                @if($uploadType === 'beauty')
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Beauty Category</label>
-                    <select wire:model="uploadBeautyCategory" class="w-full rounded-md border-gray-300 text-sm">
-                        <option value="">Nessuna categoria</option>
-                        <option value="main">Main</option>
-                        <option value="slideshow">Slideshow</option>
-                        <option value="header">Header</option>
-                    </select>
-                </div>
-                @endif
-
-                <div class="flex justify-end space-x-3 pt-4">
-                    <button type="button" 
-                            wire:click="closeUploadModal" 
-                            class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 text-sm">
-                        Annulla
-                    </button>
-                    <button type="submit" 
-                            class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm">
-                        Carica Immagini
-                    </button>
-                </div>
-            </form>
+                <button type="button" 
+                        wire:click="processUpload"
+                        wire:loading.attr="disabled"
+                        wire:target="processUpload"
+                        class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm inline-flex items-center disabled:opacity-50 disabled:cursor-not-allowed">
+                    
+                    <!-- Loading spinner -->
+                    <svg wire:loading wire:target="uploadImages" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    
+                    <!-- Dynamic text -->
+                    <span wire:loading.remove wire:click="uploadImages">Carica Immagini</span>
+                    <span wire:loading wire:target="uploadImages">Caricamento...</span>
+                </button>
+            </div>
         </div>
     </div>
-    @endif
+</div>
+@endif
 
     <!-- Image Detail Modal (Desktop Only) -->
     @if($showImageDetail && !$isMobile && $this->selectedImage)
