@@ -6,6 +6,10 @@ use App\Services\ImageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use App\Models\Image;
+// NON importare Intervention\Image\Facades\Image per evitare conflitto
+// Usa il Manager direttamente invece del Facade per evitare conflitti
+use Intervention\Image\ImageManager;
+use Intervention\Image\Drivers\Gd\Driver; // o Imagick\Driver se usi Imagick
 
 class ImageController extends Controller
 {
@@ -18,29 +22,126 @@ class ImageController extends Controller
 
     /**
      * Serve image by clean name: /img/cestino-roma-blue.jpg
+     * NOW WITH INTERVENTION IMAGE PROCESSING INSTEAD OF REDIRECT
      */
-    public function serve(string $cleanName)
-{
-    $cleanName = preg_replace('/\.(jpg|jpeg|png|webp|gif)$/i', '', $cleanName);
-    
-    $image = Image::where('clean_name', $cleanName)->first();
-    
-    if (!$image) {
-        abort(404, 'Image not found');
+    public function serve(Request $request, string $cleanName)
+    {
+        // Rimuovi estensione dal clean name se presente
+        $cleanName = preg_replace('/\.(jpg|jpeg|png|webp|gif)$/i', '', $cleanName);
+        
+        $image = Image::where('clean_name', $cleanName)->first();
+        
+        if (!$image) {
+            abort(404, 'Image not found');
+        }
+
+        // Ottieni parametri per processing (opzionali)
+        $width = $request->get('w', null);
+        $height = $request->get('h', null);
+        $quality = $request->get('q', 90);
+        $format = $request->get('f', null);
+
+        try {
+            // Scarica l'immagine da AWS S3
+            $imageContent = Storage::disk('s3')->get($image->aws_key);
+            
+            if (!$imageContent) {
+                \Log::warning('Image content not found on S3', [
+                    'clean_name' => $cleanName,
+                    'aws_key' => $image->aws_key
+                ]);
+                
+                $correctUrl = Storage::disk('s3')->url($image->aws_key);
+                return redirect($correctUrl, 302);
+            }
+
+            // INTERVENTION IMAGE v3 - Usa ImageManager direttamente
+            $manager = new \Intervention\Image\ImageManager(
+                new \Intervention\Image\Drivers\Gd\Driver()
+            );
+            
+            // Leggi l'immagine con read() invece di make()
+            $interventionImage = $manager->read($imageContent);
+            
+            // Applica trasformazioni se richieste
+            if ($width || $height) {
+                // v3 syntax: scale() invece di resize()
+                if ($width && $height) {
+                    $interventionImage = $interventionImage->scale($width, $height);
+                } elseif ($width) {
+                    $interventionImage = $interventionImage->scaleDown($width);
+                } elseif ($height) {
+                    $interventionImage = $interventionImage->scaleDown(height: $height);
+                }
+            }
+
+            // Determina formato output
+            $outputFormat = $format ?: 'jpg';
+            $mimeType = $this->getMimeType($outputFormat);
+            
+            // Encode l'immagine - v3 syntax
+            $encodedImage = match($outputFormat) {
+                'png' => $interventionImage->toPng(),
+                'webp' => $interventionImage->toWebp($quality),
+                'jpg', 'jpeg' => $interventionImage->toJpeg($quality),
+                default => $interventionImage->toJpeg($quality)
+            };
+            
+            \Log::info('Image processed successfully with Intervention v3', [
+                'clean_name' => $cleanName,
+                'width' => $width,
+                'height' => $height,
+                'quality' => $quality,
+                'format' => $outputFormat,
+                'original_size' => strlen($imageContent),
+                'processed_size' => strlen($encodedImage)
+            ]);
+            
+            // Restituisci l'immagine processata
+            return response($encodedImage)
+                ->header('Content-Type', $mimeType)
+                ->header('Cache-Control', 'public, max-age=31536000')
+                ->header('Expires', gmdate('D, d M Y H:i:s', time() + 31536000) . ' GMT')
+                ->header('X-Image-Processed', 'intervention-v3')
+                ->header('X-Image-Source', 'aws-s3');
+
+        } catch (\Exception $e) {
+            \Log::error('Error processing image with Intervention v3', [
+                'clean_name' => $cleanName,
+                'aws_key' => $image->aws_key ?? 'unknown',
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            // Fallback: redirect ad AWS
+            try {
+                $correctUrl = Storage::disk('s3')->url($image->aws_key);
+                return redirect($correctUrl, 302);
+            } catch (\Exception $fallbackError) {
+                \Log::error('Fallback redirect failed', [
+                    'clean_name' => $cleanName,
+                    'fallback_error' => $fallbackError->getMessage()
+                ]);
+                abort(500, 'Image processing failed');
+            }
+        }
     }
 
-    // FIX: NON usare $image->aws_url, genera l'URL corretto
-    $correctUrl = Storage::disk('s3')->url($image->aws_key);
-    
-    \Log::info('S3 redirect', [
-        'clean_name' => $cleanName,
-        'aws_key' => $image->aws_key,
-        'old_aws_url' => $image->aws_url,
-        'new_correct_url' => $correctUrl
-    ]);
+    /**
+     * Helper per determinare MIME type dal formato
+     */
+    private function getMimeType(string $format): string
+    {
+        $mimeTypes = [
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg', 
+            'png' => 'image/png',
+            'webp' => 'image/webp',
+            'gif' => 'image/gif',
+        ];
 
-    return redirect($correctUrl);
-}
+        return $mimeTypes[strtolower($format)] ?? 'image/jpeg';
+    }
 
     /**
      * Genera l'URL S3 corretto basato sulla configurazione attuale
