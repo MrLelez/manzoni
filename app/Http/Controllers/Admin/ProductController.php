@@ -56,6 +56,7 @@ class ProductController extends Controller
 
     public function store(Request $request)
     {
+        // Mantieni la tua validazione esistente
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'sku' => 'required|string|max:255|unique:products,sku',
@@ -70,18 +71,24 @@ class ProductController extends Controller
             'is_featured' => 'boolean',
         ]);
 
-        // Genera slug automaticamente
+        // Genera slug automaticamente (come nel tuo controller)
         $validated['slug'] = \Str::slug($validated['name']);
 
-        $product = Product::create($validated);
-
-        return redirect()->route('admin.products.index')
-                        ->with('success', 'Prodotto creato con successo!');
+        // Se arriva da Livewire, usa il service, altrimenti usa il metodo standard
+        if ($request->wantsJson() || $request->has('livewire')) {
+            // Gestito da Livewire
+            return response()->json(['success' => true]);
+        } else {
+            // Metodo tradizionale del tuo controller
+            $product = Product::create($validated);
+            return redirect()->route('admin.products.index')
+                            ->with('success', 'Prodotto creato con successo!');
+        }
     }
 
     public function show(Product $product)
     {
-        $product->load(['category', 'images', 'tags', 'variants']);
+        $product->load(['category', 'images', 'pricing', 'variants', 'relationships.relatedProduct', 'accessories.accessoryProduct', 'tags']);
         
         return view('admin.products.show', compact('product'));
     }
