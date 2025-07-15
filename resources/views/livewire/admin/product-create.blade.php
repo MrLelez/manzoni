@@ -30,6 +30,29 @@
         </div>
     @endif
 
+    @if(config('app.debug'))
+    <div class="mb-6 bg-yellow-50 border border-yellow-200 rounded-md p-4">
+        <h3 class="text-yellow-800 font-medium mb-2">🔍 Debug Info (solo in development)</h3>
+        <div class="text-sm text-yellow-700 space-y-1">
+            <p><strong>Product ID:</strong> {{ $productId ?? 'null' }}</p>
+            <p><strong>Is Editing:</strong> {{ $isEditing ? 'true' : 'false' }}</p>
+            <p><strong>Name:</strong> "{{ $name }}"</p>
+            <p><strong>SKU:</strong> "{{ $sku }}"</p>
+            <p><strong>Base Price:</strong> "{{ $base_price }}"</p>
+            <p><strong>Category ID:</strong> "{{ $category_id }}"</p>
+            <p><strong>Status:</strong> "{{ $status }}"</p>
+            <p><strong>Validation Errors:</strong> {{ count($errors) }} errori</p>
+            @if($errors)
+                <ul class="list-disc list-inside mt-2">
+                    @foreach($errors as $error)
+                        <li class="text-red-600">{{ $error }}</li>
+                    @endforeach
+                </ul>
+            @endif
+        </div>
+    </div>
+@endif
+
     @if(!empty($errors))
         <div class="mb-6 bg-red-50 border border-red-200 rounded-md p-4">
             <div class="flex">
@@ -79,7 +102,7 @@
                         </div>
                     </div>
 
-                    <!-- Categoria - usa il tuo metodo -->
+                    <!-- Categoria -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Categoria *</label>
                         <select wire:model="category_id" 
@@ -100,7 +123,7 @@
                                placeholder="1250.00">
                     </div>
 
-                    <!-- Status - compatibile con il tuo controller -->
+                    <!-- Status -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Stato</label>
                         <select wire:model="status" 
@@ -127,14 +150,6 @@
                                   placeholder="Descrizione dettagliata del prodotto..."></textarea>
                     </div>
 
-                    <!-- Specifiche Tecniche -->
-                    <div class="md:col-span-2">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Specifiche Tecniche</label>
-                        <textarea wire:model="technical_specs" rows="3"
-                                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                                  placeholder="Specifiche tecniche dettagliate..."></textarea>
-                    </div>
-
                     <!-- Featured -->
                     <div class="md:col-span-2">
                         <label class="flex items-center">
@@ -142,6 +157,66 @@
                                    class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
                             <span class="ml-2 text-sm text-gray-700">Prodotto in evidenza</span>
                         </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 🎯 SEZIONE MATERIALI E COLORI CON TAG MANAGER -->
+        <div class="bg-white shadow rounded-lg">
+            <div class="px-6 py-4 border-b border-gray-200 bg-blue-50">
+                <h2 class="text-lg font-semibold text-gray-900 flex items-center">
+                    <span class="text-2xl mr-2">🎨</span>
+                    Materiali e Colori
+                </h2>
+                <p class="text-sm text-gray-600 mt-1">Seleziona o crea materiali e colori per questo prodotto</p>
+            </div>
+            <div class="p-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- MATERIALE CON TAG MANAGER -->
+                    <div>
+                        @livewire('admin.tag-manager-component', [
+                            'category' => 'material', 
+                            'productId' => $productId ?? null
+                        ], key('material-manager-' . ($productId ?? 'new')))
+                    </div>
+
+                    <!-- COLORE CON TAG MANAGER -->
+                    <div>
+                        @livewire('admin.tag-manager-component', [
+                            'category' => 'color', 
+                            'productId' => $productId ?? null
+                        ], key('color-manager-' . ($productId ?? 'new')))
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 🎯 SEZIONE FINITURE E CERTIFICAZIONI CON TAG MANAGER -->
+        <div class="bg-white shadow rounded-lg">
+            <div class="px-6 py-4 border-b border-gray-200 bg-green-50">
+                <h2 class="text-lg font-semibold text-gray-900 flex items-center">
+                    <span class="text-2xl mr-2">✨</span>
+                    Finiture e Certificazioni
+                </h2>
+                <p class="text-sm text-gray-600 mt-1">Seleziona finiture e certificazioni (opzionale)</p>
+            </div>
+            <div class="p-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- FINITURA CON TAG MANAGER -->
+                    <div>
+                        @livewire('admin.tag-manager-component', [
+                            'category' => 'finish', 
+                            'productId' => $productId ?? null
+                        ], key('finish-manager-' . ($productId ?? 'new')))
+                    </div>
+
+                    <!-- CERTIFICAZIONE CON TAG MANAGER -->
+                    <div>
+                        @livewire('admin.tag-manager-component', [
+                            'category' => 'certification', 
+                            'productId' => $productId ?? null
+                        ], key('certification-manager-' . ($productId ?? 'new')))
                     </div>
                 </div>
             </div>
@@ -166,29 +241,7 @@
                         <label class="block text-sm font-medium text-gray-700 mb-2">Dimensioni</label>
                         <input type="text" wire:model="dimensions"
                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                               placeholder="Es: {'length': 180, 'width': 60, 'height': 80}">
-                    </div>
-
-                    <!-- Materiali -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Materiali</label>
-                        <select wire:model="materials" multiple
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
-                            @foreach($formData['materials'] as $value => $label)
-                                <option value="{{ $value }}">{{ $label }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <!-- Colori -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Colori</label>
-                        <select wire:model="colors" multiple
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
-                            @foreach($formData['colors'] as $value => $label)
-                                <option value="{{ $value }}">{{ $label }}</option>
-                            @endforeach
-                        </select>
+                               placeholder="Es: 180x60x80 cm">
                     </div>
 
                     <!-- Tipo Installazione -->
@@ -207,6 +260,14 @@
                         <label class="block text-sm font-medium text-gray-700 mb-2">Garanzia (anni)</label>
                         <input type="number" wire:model="warranty_years" min="1" max="10"
                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+
+                    <!-- Specifiche Tecniche -->
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Specifiche Tecniche</label>
+                        <textarea wire:model="technical_specs" rows="3"
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                  placeholder="Specifiche tecniche dettagliate..."></textarea>
                     </div>
                 </div>
             </div>
@@ -261,35 +322,57 @@
             </div>
         </div>
 
-        <!-- Tags -->
+        <!-- Tags Aggiuntivi -->
         <div class="bg-white shadow rounded-lg">
             <div class="px-6 py-4 border-b border-gray-200">
-                <h2 class="text-lg font-semibold text-gray-900">Tags</h2>
+                <h2 class="text-lg font-semibold text-gray-900">Tags Aggiuntivi</h2>
             </div>
             <div class="p-6">
-                <div class="flex flex-wrap gap-2 mb-4">
-                    @foreach($tags as $index => $tag)
-                        <span class="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
-                            {{ $tag }}
-                            <button type="button" wire:click="removeTag({{ $index }})" class="ml-2 text-blue-600 hover:text-blue-800">
-                                ×
-                            </button>
-                        </span>
-                    @endforeach
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <!-- STILE CON TAG MANAGER -->
+                    <div>
+                        @livewire('admin.tag-manager-component', [
+                            'category' => 'style', 
+                            'productId' => $productId ?? null
+                        ], key('style-manager-' . ($productId ?? 'new')))
+                    </div>
+
+                    <!-- CARATTERISTICHE CON TAG MANAGER -->
+                    <div>
+                        @livewire('admin.tag-manager-component', [
+                            'category' => 'feature', 
+                            'productId' => $productId ?? null
+                        ], key('feature-manager-' . ($productId ?? 'new')))
+                    </div>
                 </div>
-                <div class="flex">
-                    <input type="text" wire:model="tagInput" wire:keydown.enter="addTag"
-                           class="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:ring-blue-500 focus:border-blue-500"
-                           placeholder="Aggiungi tag...">
-                    <button type="button" wire:click="addTag"
-                            class="px-4 py-2 bg-blue-600 text-white rounded-r-md hover:bg-blue-700">
-                        Aggiungi
-                    </button>
+
+                <!-- Tags liberi (mantenuti dal tuo sistema esistente) -->
+                <div class="border-t pt-6">
+                    <h3 class="text-md font-medium text-gray-900 mb-4">Tags Liberi</h3>
+                    <div class="flex flex-wrap gap-2 mb-4">
+                        @foreach($tags as $index => $tag)
+                            <span class="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
+                                {{ $tag }}
+                                <button type="button" wire:click="removeTag({{ $index }})" class="ml-2 text-blue-600 hover:text-blue-800">
+                                    ×
+                                </button>
+                            </span>
+                        @endforeach
+                    </div>
+                    <div class="flex">
+                        <input type="text" wire:model="tagInput" wire:keydown.enter="addTag"
+                               class="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:ring-blue-500 focus:border-blue-500"
+                               placeholder="Aggiungi tag libero...">
+                        <button type="button" wire:click="addTag"
+                                class="px-4 py-2 bg-blue-600 text-white rounded-r-md hover:bg-blue-700">
+                            Aggiungi
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- Prodotti Correlati -->
+        <!-- Prodotti Correlati (mantenuto dal tuo sistema) -->
         <div class="bg-white shadow rounded-lg">
             <div class="px-6 py-4 border-b border-gray-200">
                 <h2 class="text-lg font-semibold text-gray-900">Prodotti Correlati</h2>
@@ -333,63 +416,6 @@
                     <button type="button" wire:click="addRelationship"
                             class="w-full px-4 py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-gray-400">
                         + Aggiungi Relazione
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Accessori -->
-        <div class="bg-white shadow rounded-lg">
-            <div class="px-6 py-4 border-b border-gray-200">
-                <h2 class="text-lg font-semibold text-gray-900">Prodotti Accessori</h2>
-            </div>
-            <div class="p-6">
-                <div class="space-y-4">
-                    @foreach($accessories as $index => $accessory)
-                        <div class="bg-gray-50 rounded-lg p-4">
-                            <div class="flex items-center justify-between mb-4">
-                                <h4 class="text-sm font-medium text-gray-900">Accessorio #{{ $index + 1 }}</h4>
-                                <button type="button" wire:click="removeAccessory({{ $index }})"
-                                        class="text-red-600 hover:text-red-800 text-sm">
-                                    Rimuovi
-                                </button>
-                            </div>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div class="md:col-span-2">
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">Prodotto</label>
-                                    <select wire:model="accessories.{{ $index }}.product_id"
-                                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
-                                        <option value="">Seleziona prodotto</option>
-                                        @foreach($formData['available_products'] as $product)
-                                            <option value="{{ $product['id'] }}">
-                                                {{ $product['name'] }} ({{ $product['sku'] }}) - {{ $product['category_name'] }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">Quantità</label>
-                                    <input type="number" wire:model="accessories.{{ $index }}.quantity" min="1"
-                                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">Modifica Prezzo (€)</label>
-                                    <input type="number" wire:model="accessories.{{ $index }}.price_modifier" step="0.01"
-                                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
-                                </div>
-                                <div class="md:col-span-2">
-                                    <label class="flex items-center">
-                                        <input type="checkbox" wire:model="accessories.{{ $index }}.is_required"
-                                               class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
-                                        <span class="ml-2 text-sm text-gray-700">Accessorio indispensabile</span>
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                    @endforeach
-                    <button type="button" wire:click="addAccessory"
-                            class="w-full px-4 py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-gray-400">
-                        + Aggiungi Accessorio
                     </button>
                 </div>
             </div>

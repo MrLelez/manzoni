@@ -12,6 +12,7 @@ use App\Models\Tag;
 use App\Services\ImageService;
 use Illuminate\Support\Str;
 use Spatie\Activitylog\Facades\Activity;
+use App\Models\Image;
 
 class ProductEditor extends Component
 {
@@ -75,6 +76,10 @@ class ProductEditor extends Component
         'editCategoryName' => 'required|string|max:255',
         'uploadedImages.*' => 'image|max:10240',
     ];
+
+    protected $listeners = [
+    'processImageSelection' => 'handleImageSelection'
+];
 
     public function mount(Product $product)
     {
@@ -941,6 +946,121 @@ public function getBeautyByCategory($category)
         ];
         
         return $badges[$this->status] ?? $this->status;
+    }
+
+    // ===========================
+    // IMAGE PICKER METHODS ✨
+    // ===========================
+
+    /**
+     * Apri image picker per selezione da libreria
+     */
+    public function openImagePicker($mode = 'gallery')
+    {
+        $this->dispatch('open-image-picker', [
+            'mode' => $mode,
+            'productId' => $this->product->id,
+            'multiSelect' => true,
+            'eventName' => 'image-selected'
+        ]);
+    }
+
+    /**
+     * Gestisci selezione immagini dal picker
+     */
+    // RIMUOVI o COMMENTA questa riga:
+public function handleImageSelection($imageIds, $images, $mode, $productId)
+{
+    try {
+        // Ora i parametri arrivano separati, non in un array
+        $mode = $mode ?? 'gallery';
+        $imageIds = $imageIds ?? [];
+        $assignedCount = 0;
+
+        foreach ($imageIds as $imageId) {
+            $image = Image::find($imageId);
+            if (!$image) continue;
+
+            // Assegna l'immagine al prodotto
+            $image->update([
+                'imageable_type' => 'App\\Models\\Product',
+                'imageable_id' => $this->product->id,
+                'type' => $mode,
+                'sort_order' => $this->getNextSortOrder()
+            ]);
+
+            $assignedCount++;
+
+            Activity::performedOn($this->product)
+                ->causedBy(auth()->user())
+                ->withProperties([
+                    'image_id' => $imageId,
+                    'source' => 'library_picker',
+                    'type' => $mode
+                ])
+                ->log("Added {$mode} image from library");
+        }
+
+        // Se è gallery e non c'è primary, imposta la prima come primary
+        if ($mode === 'gallery' && !$this->product->hasPrimaryImage()) {
+            $firstImage = $this->product->galleryImages()->first();
+            if ($firstImage) {
+                $this->product->setPrimaryImage($firstImage);
+            }
+        }
+
+        $this->reloadProduct();
+        
+        $typeLabel = $mode === 'gallery' ? 'Gallery' : 'Sfondi';
+        $this->dispatch('toast', message: "{$assignedCount} immagini aggiunte a {$typeLabel}!", type: 'success');
+
+    } catch (\Exception $e) {
+        \Log::error('Failed to assign images from picker: ' . $e->getMessage());
+        $this->dispatch('toast', message: 'Errore: ' . $e->getMessage(), type: 'error');
+    }
+}
+
+    public function testImageSelection()
+{
+    $this->dispatch('toast', message: 'ProductEditor is alive!', type: 'info');
+}
+
+    /**
+     * Helper per ottenere il prossimo sort order
+     */
+    private function getNextSortOrder(): int
+    {
+        $maxOrder = $this->product->images()->max('sort_order');
+        return ($maxOrder ?? 0) + 1;
+    }
+
+    /**
+     * Reset completo del componente (forza reload da database)
+     */
+    public function resetComponent()
+    {
+        // Clear di tutte le cache
+        $this->product->refresh();
+        
+        // Reload completo delle relazioni
+        $this->product = Product::with([
+            'primaryImage',
+            'images',
+            'galleryImages', 
+            'beautyImages',
+            'tags',
+            'category'
+        ])->find($this->product->id);
+
+        // Re-sync proprietà component
+        $this->name = $this->product->name;
+        $this->sku = $this->product->sku;
+        $this->description = $this->product->description;
+        $this->base_price = $this->product->base_price;
+        $this->status = $this->product->status ?? 'draft';
+        $this->category_id = $this->product->category_id;
+        $this->is_featured = $this->product->is_featured ?? false;
+        $this->selectedTags = $this->product->tags ? $this->product->tags->pluck('id')->toArray() : [];
     }
 
     // ===========================

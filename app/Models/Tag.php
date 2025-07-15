@@ -28,6 +28,7 @@ class Tag extends Model
         'color',
         'icon',
         'type',
+        'category',
         'is_active',
         'is_featured',
         'sort_order',
@@ -111,7 +112,7 @@ class Tag extends Model
      */
     public function scopeByType($query, string $type)
     {
-        return $query->where('type', $type);
+        return $query->where('category', $type);
     }
 
     /**
@@ -227,7 +228,7 @@ class Tag extends Model
      */
     public function getFormattedTypeAttribute(): string
     {
-        return match($this->type) {
+        return match($this->category) {
             'material' => 'Materiale',
             'color' => 'Colore',
             'style' => 'Stile',
@@ -513,7 +514,7 @@ class Tag extends Model
                 ['name' => $tagName],
                 [
                     'slug' => \Str::slug($tagName),
-                    'type' => $type,
+                    'category' => $type,
                     'is_active' => true,
                     'usage_count' => 0,
                 ]

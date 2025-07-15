@@ -46,8 +46,13 @@ class Product extends Model
         'meta_description',
         'meta_keywords',
         'beauty_category',
-        'primary_image_id', // ✨ Primary image system
-        // REMOVED: 'beauty_image_id' - now using type system
+        'primary_image_id',
+        'has_material_options',
+        'has_color_options',
+        'has_finish_options',
+        'default_material_tag_id',
+        'default_color_tag_id',
+        'default_finish_tag_id',
     ];
 
     /**
@@ -74,6 +79,9 @@ class Product extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',
+        'has_material_options' => 'boolean',
+        'has_color_options' => 'boolean',
+        'has_finish_options' => 'boolean',
     ];
 
     /**
@@ -187,6 +195,54 @@ class Product extends Model
     public function translations(): MorphMany
     {
         return $this->morphMany(Translation::class, 'translatable');
+    }
+
+    /**
+     * Tag materiali disponibili per questo prodotto
+     */
+    public function materialTags(): BelongsToMany
+    {
+        return $this->tags()->where('type', 'material')->active();
+    }
+
+    /**
+     * Tag colori disponibili per questo prodotto
+     */
+    public function colorTags(): BelongsToMany
+    {
+        return $this->tags()->where('type', 'color')->active();
+    }
+
+    /**
+     * Tag finiture disponibili per questo prodotto
+     */
+    public function finishTags(): BelongsToMany
+    {
+        return $this->tags()->where('type', 'finish')->active();
+    }
+
+    /**
+     * Tag materiale di default
+     */
+    public function defaultMaterialTag(): BelongsTo
+    {
+        return $this->belongsTo(Tag::class, 'default_material_tag_id');
+    }
+
+    /**
+     * Tag colore di default
+     */
+    public function defaultColorTag(): BelongsTo
+    {
+        return $this->belongsTo(Tag::class, 'default_color_tag_id');
+    }
+
+    /**
+     * Tag finitura di default
+     */
+    public function defaultFinishTag(): BelongsTo
+    {
+        return $this->belongsTo(Tag::class, 'default_finish_tag_id');
     }
 
     // ===================================================================
@@ -325,15 +381,92 @@ class Product extends Model
 
 
     /**
+     * Ottieni i materiali disponibili - VERSIONE DINAMICA
+     * Se has_material_options = true, usa i tag, altrimenti usa il campo 'material'
+     */
+    public function getMaterialsOptionsAttribute()
+    {
+        if ($this->has_material_options) {
+            return $this->materialTags()->ordered()->get();
+        }
+        
+        // Fallback: usa il campo 'material' esistente
+        return $this->material ? collect([['name' => $this->material]]) : collect();
+    }
+
+    /**
+     * Ottieni i colori disponibili - VERSIONE DINAMICA
+     * Se has_color_options = true, usa i tag, altrimenti usa il campo 'color'
+     */
+    public function getColorsOptionsAttribute()
+    {
+        if ($this->has_color_options) {
+            return $this->colorTags()->ordered()->get();
+        }
+        
+        // Fallback: usa il campo 'color' esistente
+        return $this->color ? collect([['name' => $this->color]]) : collect();
+    }
+
+    /**
+     * Ottieni le finiture disponibili - VERSIONE DINAMICA
+     * Se has_finish_options = true, usa i tag, altrimenti usa il campo 'finish'
+     */
+    public function getFinishesOptionsAttribute()
+    {
+        if ($this->has_finish_options) {
+            return $this->finishTags()->ordered()->get();
+        }
+        
+        // Fallback: usa il campo 'finish' esistente
+        return $this->finish ? collect([['name' => $this->finish]]) : collect();
+    }
+
+    /**
+     * Ottieni il materiale principale (compatibilità con codice esistente)
+     */
+    public function getPrimaryMaterialAttribute(): string
+    {
+        if ($this->has_material_options && $this->defaultMaterialTag) {
+            return $this->defaultMaterialTag->name;
+        }
+        return $this->material ?? '';
+    }
+
+    /**
+     * Ottieni il colore principale (compatibilità con codice esistente)
+     */
+    public function getPrimaryColorAttribute(): string
+    {
+        if ($this->has_color_options && $this->defaultColorTag) {
+            return $this->defaultColorTag->name;
+        }
+        return $this->color ?? '';
+    }
+
+    /**
+     * Ottieni la finitura principale (compatibilità con codice esistente)
+     */
+    public function getPrimaryFinishAttribute(): string
+    {
+        if ($this->has_finish_options && $this->defaultFinishTag) {
+            return $this->defaultFinishTag->name;
+        }
+        return $this->finish ?? '';
+    }
+
+    /**
      * Ottieni l'immagine principale
      */
     public function getPrimaryImageAttribute(): ?Image
     {
-        if ($this->primary_image_id && $this->primaryImage) {
-            return $this->primaryImage;
-        }
+        if ($this->primary_image_id) {
+        // forza la query sul BelongsTo senza passare per $this->primaryImage
+        return $this->primaryImage()->first();
+    }
 
-        return $this->galleryImages()->first();
+    // fallback alla prima gallery
+    return $this->galleryImages()->first();
     }
 
     /**
@@ -760,6 +893,116 @@ public function removeBeautyFromCategory(Image $image): bool
     {
         return $this->getTranslation('description') ?? $this->description;
     }
+
+    /**
+ * Verifica se il prodotto ha opzioni configurabili
+ */
+public function hasConfigurableOptions(): bool
+{
+    return $this->has_material_options || $this->has_color_options || $this->has_finish_options;
+}
+
+/**
+ * Aggiungi opzione materiale
+ */
+public function addMaterialOption(Tag $materialTag): void
+{
+    if ($materialTag->type !== 'material') {
+        throw new \InvalidArgumentException('Il tag deve essere di tipo "material"');
+    }
+    $this->tags()->syncWithoutDetaching([$materialTag->id]);
+    $this->update(['has_material_options' => true]);
+}
+
+/**
+ * Aggiungi opzione colore
+ */
+public function addColorOption(Tag $colorTag): void
+{
+    if ($colorTag->type !== 'color') {
+        throw new \InvalidArgumentException('Il tag deve essere di tipo "color"');
+    }
+    $this->tags()->syncWithoutDetaching([$colorTag->id]);
+    $this->update(['has_color_options' => true]);
+}
+
+/**
+ * Aggiungi opzione finitura
+ */
+public function addFinishOption(Tag $finishTag): void
+{
+    if ($finishTag->type !== 'finish') {
+        throw new \InvalidArgumentException('Il tag deve essere di tipo "finish"');
+    }
+    $this->tags()->syncWithoutDetaching([$finishTag->id]);
+    $this->update(['has_finish_options' => true]);
+}
+
+/**
+ * Imposta materiale di default
+ */
+public function setDefaultMaterial(Tag $materialTag): void
+{
+    if ($materialTag->type !== 'material') {
+        throw new \InvalidArgumentException('Il tag deve essere di tipo "material"');
+    }
+    if (!$this->tags()->where('tag_id', $materialTag->id)->exists()) {
+        $this->addMaterialOption($materialTag);
+    }
+    $this->update(['default_material_tag_id' => $materialTag->id]);
+}
+
+/**
+ * Imposta colore di default
+ */
+public function setDefaultColor(Tag $colorTag): void
+{
+    if ($colorTag->type !== 'color') {
+        throw new \InvalidArgumentException('Il tag deve essere di tipo "color"');
+    }
+    if (!$this->tags()->where('tag_id', $colorTag->id)->exists()) {
+        $this->addColorOption($colorTag);
+    }
+    $this->update(['default_color_tag_id' => $colorTag->id]);
+}
+
+/**
+ * Imposta finitura di default
+ */
+public function setDefaultFinish(Tag $finishTag): void
+{
+    if ($finishTag->type !== 'finish') {
+        throw new \InvalidArgumentException('Il tag deve essere di tipo "finish"');
+    }
+    if (!$this->tags()->where('tag_id', $finishTag->id)->exists()) {
+        $this->addFinishOption($finishTag);
+    }
+    $this->update(['default_finish_tag_id' => $finishTag->id]);
+}
+
+/**
+ * Ottieni tutti i materiali disponibili nel sistema
+ */
+public static function getAvailableMaterials()
+{
+    return Tag::byType('material')->active()->ordered()->get();
+}
+
+/**
+ * Ottieni tutti i colori disponibili nel sistema
+ */
+public static function getAvailableColors()
+{
+    return Tag::byType('color')->active()->ordered()->get();
+}
+
+/**
+ * Ottieni tutte le finiture disponibili nel sistema
+ */
+public static function getAvailableFinishes()
+{
+    return Tag::byType('finish')->active()->ordered()->get();
+}
 
     // ===================================================================
     // MUTATORS

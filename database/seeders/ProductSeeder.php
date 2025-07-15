@@ -313,13 +313,13 @@ class ProductSeeder extends Seeder
         
         $products = [
             [
-                'name' => 'Panchina Roma Classic',
-                'sku' => 'ROMA-001',
+                'name' => 'Panchina Milano',
+                'sku' => 'SEPAMIL',
                 'model' => 'roma-classic',
-                'short_description' => 'Panchina classica in acciaio e teak',
+                'short_description' => 'Panchina classica in legno',
                 'description' => 'Panchina elegante in acciaio inox e legno teak, perfetta per parchi e giardini pubblici. Design classico italiano che unisce funzionalità e bellezza.',
                 'type' => 'variable',
-                'category' => 'panchine-metallo',
+                'category' => 'panchine-legno',
                 'base_price' => 1250.00,
                 'currency' => 'EUR',
                 'status' => 'active',

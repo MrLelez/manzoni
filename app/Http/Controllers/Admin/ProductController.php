@@ -12,7 +12,7 @@ class ProductController extends Controller
 {
     public function index(Request $request)
 {
-    $query = Product::with(['category']);
+    $query = Product::with(['category', 'primaryImage', 'galleryImages']); 
 
     // Filtri corretti usando le colonne reali
     if ($request->filled('search')) {
@@ -36,7 +36,7 @@ class ProductController extends Controller
         'total' => Product::count(),
         'active' => Product::where('status', 'active')->count(), // Usa 'status'
         'featured' => Product::where('is_featured', true)->count(),
-        'without_images' => 0, // Temporaneamente disabilitato
+        'without_images' => Product::whereDoesntHave('primaryImage')->count(),
     ];
 
     // Categorie (se esiste la tabella)
