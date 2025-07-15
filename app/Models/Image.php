@@ -1,5 +1,5 @@
 <?php
-// app/Models/Image.php - CLEANED VERSION (Remove primary logic)
+// app/Models/Image.php - Beauty con tag Marketing
 
 namespace App\Models;
 
@@ -10,8 +10,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
-
-// ✅ AGGIUNGI QUESTO IMPORT
 use App\Models\Product;
 
 class Image extends Model
@@ -45,6 +43,15 @@ class Image extends Model
         'caption',
         'dominant_color',
         'processing_status',
+        
+        // Beauty fields
+        'beauty_category',
+        
+        // ✨ NUOVO: Tag marketing per beauty
+        'is_marketing',
+        'marketing_category',
+        'campaign_name',
+        'usage_rights',
     ];
 
     protected $casts = [
@@ -59,64 +66,81 @@ class Image extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',
+        'is_marketing' => 'boolean', // ✨ NUOVO
     ];
 
     /**
-     * Relazione polimorfica con qualsiasi model
+     * ✨ Tipi esistenti (rimangono invariati)
+     */
+    public const TYPES = [
+        'gallery' => 'Gallery Prodotto',
+        'beauty' => 'Marketing', // ✨ Rinominato a schermo
+        'product' => 'Prodotto Standard',
+        'category' => 'Categoria',
+        'content' => 'Contenuto',
+        'temp' => 'Temporanea'
+    ];
+
+    /**
+     * ✨ Categorie marketing (solo per beauty con is_marketing = true)
+     */
+    public const MARKETING_CATEGORIES = [
+        'hero' => 'Hero Image',
+        'banner' => 'Banner',
+        'social' => 'Social Media',
+        'brochure' => 'Brochure',
+        'presentation' => 'Presentazione',
+        'web' => 'Web Content',
+        'press' => 'Press Kit',
+        'advertising' => 'Advertising',
+        'events' => 'Eventi',
+        'catalog' => 'Catalogo'
+    ];
+
+    /**
+     * Relazioni esistenti
      */
     public function imageable(): MorphTo
     {
         return $this->morphTo();
     }
 
-    /**
-     * Relazione con l'utente che ha caricato l'immagine
-     */
     public function uploader(): BelongsTo
     {
         return $this->belongsTo(User::class, 'uploaded_by');
     }
 
     /**
-     * Scope: Solo immagini attive
+     * Scopes esistenti
      */
     public function scopeActive($query)
     {
         return $query->where('status', 'active');
     }
 
-    /**
-     * Scope: Ordinate per sort_order
-     */
     public function scopeOrdered($query)
     {
         return $query->orderBy('sort_order', 'asc')->orderBy('created_at', 'asc');
     }
 
-    /**
-     * Scope: Immagini completate (processing_status = completed)
-     */
     public function scopeCompleted($query)
     {
         return $query->where('processing_status', 'completed');
     }
 
-    /**
-     * Scope: Per tipo di immagine
-     */
     public function scopeOfType($query, $type)
     {
         return $query->where('type', $type);
     }
 
-    /**
-     * Scope: Pubbliche
-     */
     public function scopePublic($query)
     {
         return $query->where('is_public', true);
     }
 
+    /**
+     * ✨ Beauty scopes aggiornati
+     */
     public function isBeauty(): bool
     {
         return $this->type === 'beauty';
@@ -128,7 +152,84 @@ class Image extends Model
     }
 
     /**
-     * Genera automaticamente l'alt text se non presente
+     * ✨ NUOVO: Marketing scopes (beauty con tag marketing)
+     */
+    public function isMarketing(): bool
+    {
+        return $this->type === 'beauty' && $this->is_marketing === true;
+    }
+
+    public function scopeMarketing($query)
+    {
+        return $query->where('type', 'beauty')->where('is_marketing', true);
+    }
+
+    /**
+     * ✨ NUOVO: Beauty associate a prodotti (non marketing)
+     */
+    public function isProductBeauty(): bool
+    {
+        return $this->type === 'beauty' && $this->is_marketing === false && $this->imageable_id !== null;
+    }
+
+    public function scopeProductBeauty($query)
+    {
+        return $query->where('type', 'beauty')
+                     ->where('is_marketing', false)
+                     ->whereNotNull('imageable_id');
+    }
+
+    /**
+     * ✨ NUOVO: Scope per categoria marketing
+     */
+    public function scopeMarketingCategory($query, $category)
+    {
+        return $query->where('type', 'beauty')
+                     ->where('is_marketing', true)
+                     ->where('marketing_category', $category);
+    }
+
+    /**
+     * ✨ AGGIORNATO: Scope orfane ESCLUDE beauty marketing
+     */
+    public function scopeOrphan($query)
+    {
+        return $query->where(function($q) {
+            $q->whereNull('imageable_id')
+              ->where(function($subQ) {
+                  // Esclude beauty marketing dalle orfane
+                  $subQ->where('type', '!=', 'beauty')
+                       ->orWhere(function($beautyQ) {
+                           $beautyQ->where('type', 'beauty')
+                                   ->where('is_marketing', false);
+                       });
+              });
+        });
+    }
+
+    /**
+     * ✨ NUOVO: Toggle marketing per beauty
+     */
+    public function toggleMarketing(string $marketingCategory = null, string $campaignName = null): bool
+    {
+        if ($this->type !== 'beauty') {
+            return false;
+        }
+
+        $newMarketingStatus = !$this->is_marketing;
+        
+        $updateData = [
+            'is_marketing' => $newMarketingStatus,
+            'marketing_category' => $newMarketingStatus ? $marketingCategory : null,
+            'campaign_name' => $newMarketingStatus ? $campaignName : null,
+            'usage_rights' => $newMarketingStatus ? $this->usage_rights : null,
+        ];
+
+        return $this->update($updateData);
+    }
+
+    /**
+     * Accessors esistenti
      */
     public function getAltTextAttribute($value)
     {
@@ -136,7 +237,6 @@ class Image extends Model
             return $value;
         }
 
-        // Se non c'è alt text, genera uno basato sul clean_name e model correlato
         if ($this->imageable) {
             $modelName = class_basename($this->imageable_type);
             $identifier = $this->imageable->name ?? $this->imageable->title ?? $this->imageable->id;
@@ -147,22 +247,79 @@ class Image extends Model
     }
 
     /**
-     * URL pulito per il frontend
+     * ✨ AGGIORNATO: Nome tipo con logic marketing
      */
+    public function getTypeNameAttribute(): string
+    {
+        if ($this->type === 'beauty') {
+            return $this->is_marketing ? 'Marketing' : 'Beauty Shot';
+        }
+        
+        return self::TYPES[$this->type] ?? ucfirst($this->type);
+    }
+
+    /**
+     * ✨ Nome categoria marketing leggibile
+     */
+    public function getMarketingCategoryNameAttribute(): string
+    {
+        if (!$this->is_marketing || !$this->marketing_category) {
+            return '';
+        }
+        
+        return self::MARKETING_CATEGORIES[$this->marketing_category] ?? ucfirst($this->marketing_category);
+    }
+
+    /**
+     * ✨ AGGIORNATO: Colore dominante con marketing
+     */
+    public function getDominantColorAttribute($value): string
+    {
+        if ($value) {
+            return $value;
+        }
+        
+        $colors = [
+            'product' => '#3B82F6',
+            'category' => '#10B981', 
+            'user_avatar' => '#8B5CF6',
+            'content' => '#F59E0B',
+            'gallery' => '#10B981',
+            'temp' => '#6B7280'
+        ];
+
+        // ✨ Beauty con colori differenti per marketing
+        if ($this->type === 'beauty') {
+            return $this->is_marketing ? '#F97316' : '#EC4899'; // Arancione per marketing, Rosa per beauty
+        }
+        
+        return $colors[$this->type] ?? '#6B7280';
+    }
+
+    /**
+     * ✨ AGGIORNATO: Ricerca include campagna marketing
+     */
+    public function scopeSearch($query, $search)
+    {
+        return $query->where(function ($q) use ($search) {
+            $q->where('clean_name', 'like', "%{$search}%")
+              ->orWhere('original_filename', 'like', "%{$search}%")
+              ->orWhere('alt_text', 'like', "%{$search}%")
+              ->orWhere('caption', 'like', "%{$search}%")
+              ->orWhere('campaign_name', 'like', "%{$search}%");
+        });
+    }
+
+    // Metodi esistenti rimangono invariati...
     public function getUrlAttribute(): string
     {
-        // Se aws_url inizia con s3://, genera l'URL HTTP
         if (str_starts_with($this->aws_url, 's3://')) {
             return \Storage::disk('s3')->url($this->aws_key);
         }
         
-        // Altrimenti usa il sistema di clean URLs
         return url('/img/' . $this->clean_name);
     }
 
-    /**
-     * URL ottimizzato con parametri
-     */
     public function getOptimizedUrl($width = null, $height = null, $quality = 80)
     {
         $url = $this->aws_url;
@@ -179,47 +336,6 @@ class Image extends Model
         return $url;
     }
 
-    /**
-     * Genera URL responsive per srcset
-     */
-    public function getResponsiveSrcset(): string
-    {
-        if (!$this->width) {
-            return $this->aws_url;
-        }
-
-        $breakpoints = [320, 640, 768, 1024, 1280, 1536];
-        $srcset = [];
-
-        foreach ($breakpoints as $width) {
-            if ($width <= $this->width) {
-                $srcset[] = $this->getOptimizedUrl($width) . " {$width}w";
-            }
-        }
-
-        $srcset[] = $this->aws_url . " {$this->width}w";
-        return implode(', ', $srcset);
-    }
-
-    /**
-     * Controlla se l'immagine è in elaborazione
-     */
-    public function isProcessing(): bool
-    {
-        return in_array($this->processing_status, ['pending', 'processing']);
-    }
-
-    /**
-     * Controlla se l'immagine è pronta per l'uso
-     */
-    public function isReady(): bool
-    {
-        return $this->processing_status === 'completed' && $this->status === 'active';
-    }
-
-    /**
-     * Ottieni la dimensione formattata
-     */
     public function getFormattedSizeAttribute(): string
     {
         if ($this->file_size < 1024) {
@@ -231,119 +347,12 @@ class Image extends Model
         }
     }
 
-    /**
-     * Ottieni le dimensioni formattate
-     */
     public function getFormattedDimensionsAttribute(): string
     {
         if ($this->width && $this->height) {
             return $this->width . '×' . $this->height;
         }
         return 'N/A';
-    }
-
-    /**
-     * ✨ REMOVED: is_primary logic - ora è gestita dal Product model
-     */
-
-    /**
-     * Aggiorna l'ordine delle immagini
-     */
-    public static function updateOrder(array $imageIds): void
-    {
-        foreach ($imageIds as $index => $imageId) {
-            static::where('id', $imageId)->update(['sort_order' => $index + 1]);
-        }
-    }
-
-    /**
-     * Ottieni la prossima posizione sort_order per questo oggetto
-     */
-    public static function getNextSortOrder($imageableType, $imageableId): int
-    {
-        $maxOrder = static::where('imageable_type', $imageableType)
-                          ->where('imageable_id', $imageableId)
-                          ->max('sort_order');
-        
-        return ($maxOrder ?? 0) + 1;
-    }
-
-    /**
-     * Ottieni il colore dominante dell'immagine
-     */
-    public function getDominantColorAttribute($value): string
-    {
-        if ($value) {
-            return $value;
-        }
-        
-        $colors = [
-            'product' => '#3B82F6',
-            'category' => '#10B981', 
-            'user_avatar' => '#8B5CF6',
-            'content' => '#F59E0B',
-            'temp' => '#6B7280'
-        ];
-        
-        return $colors[$this->type] ?? '#6B7280';
-    }
-
-    /**
-     * Scope: Cerca immagini
-     */
-    public function scopeSearch($query, $search)
-    {
-        return $query->where(function ($q) use ($search) {
-            $q->where('clean_name', 'like', "%{$search}%")
-              ->orWhere('original_filename', 'like', "%{$search}%")
-              ->orWhere('alt_text', 'like', "%{$search}%")
-              ->orWhere('caption', 'like', "%{$search}%");
-        });
-    }
-
-    /**
-     * ✨ NEW: Check if this image is primary for any product
-     */
-    public function isPrimaryForProduct($productId = null): bool
-    {
-        if ($productId) {
-            return Product::where('id', $productId)
-                         ->where('primary_image_id', $this->id)
-                         ->exists();
-        }
-        
-        // Check if it's primary for ANY product
-        return Product::where('primary_image_id', $this->id)->exists();
-    }
-
-    /**
-     * ✨ NEW: Check if this image is beauty for any product
-     */
-    public function isBeautyForProduct($productId = null): bool
-    {
-        if ($productId) {
-            return Product::where('id', $productId)
-                         ->where('beauty_image_id', $this->id)
-                         ->exists();
-        }
-        
-        return Product::where('beauty_image_id', $this->id)->exists();
-    }
-
-    /**
-     * ✨ NEW: Get products where this image is primary
-     */
-    public function productsAsPrimary()
-    {
-        return Product::where('primary_image_id', $this->id);
-    }
-
-    /**
-     * ✨ NEW: Get products where this image is beauty
-     */
-    public function productsAsBeauty()
-    {
-        return Product::where('beauty_image_id', $this->id);
     }
 
     /**
@@ -358,7 +367,12 @@ class Image extends Model
                 'caption',
                 'sort_order',
                 'status',
-                'processing_status'
+                'processing_status',
+                'type',
+                'beauty_category',
+                'is_marketing', // ✨ NUOVO
+                'marketing_category',
+                'campaign_name'
             ])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
@@ -381,30 +395,66 @@ class Image extends Model
             }
         });
 
-        // ✨ NEW: Quando si elimina un'immagine, rimuovi i riferimenti primary/beauty
+        // Quando si elimina un'immagine, rimuovi i riferimenti primary/beauty
         static::deleting(function ($image) {
-            // Rimuovi riferimenti primary_image_id
             Product::where('primary_image_id', $image->id)
                    ->update(['primary_image_id' => null]);
             
-            // Rimuovi riferimenti beauty_image_id
             Product::where('beauty_image_id', $image->id)
                    ->update(['beauty_image_id' => null]);
         });
     }
 
-
     /**
-     * Check if this image is primary (usando il campo is_primary se esiste)
+     * Metodi utili esistenti
      */
+    public static function getNextSortOrder($imageableType, $imageableId): int
+    {
+        $maxOrder = static::where('imageable_type', $imageableType)
+                          ->where('imageable_id', $imageableId)
+                          ->max('sort_order');
+        
+        return ($maxOrder ?? 0) + 1;
+    }
+
+    public function isPrimaryForProduct($productId = null): bool
+    {
+        if ($productId) {
+            return Product::where('id', $productId)
+                         ->where('primary_image_id', $this->id)
+                         ->exists();
+        }
+        
+        return Product::where('primary_image_id', $this->id)->exists();
+    }
+
+    public function isBeautyForProduct($productId = null): bool
+    {
+        if ($productId) {
+            return Product::where('id', $productId)
+                         ->where('beauty_image_id', $this->id)
+                         ->exists();
+        }
+        
+        return Product::where('beauty_image_id', $this->id)->exists();
+    }
+
+    public function productsAsPrimary()
+    {
+        return Product::where('primary_image_id', $this->id);
+    }
+
+    public function productsAsBeauty()
+    {
+        return Product::where('beauty_image_id', $this->id);
+    }
+
     public function getIsPrimaryAttribute(): bool
     {
-        // Se hai il campo is_primary nella tabella, usalo
         if (isset($this->attributes['is_primary'])) {
             return (bool) $this->attributes['is_primary'];
         }
         
-        // Altrimenti controlla se è primary per qualche prodotto
         return $this->isPrimaryForProduct();
     }
 }
